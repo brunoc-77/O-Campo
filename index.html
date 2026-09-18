@@ -1,0 +1,2556 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark">
+<title>Bruno &amp; Beatriz — Nosso Campo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Cormorant+Garamond:ital,wght@0,500;1,500;1,600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-outer:#05070a;
+    --accent:#ffe9c7;
+    --accent-border:rgba(255,214,160,0.25);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){ --bg-outer:#05070a; }
+  }
+  :root[data-theme="dark"]{ --bg-outer:#05070a; }
+  * { box-sizing: border-box; }
+  html, body {
+    margin:0; padding:0; height:100%;
+    background: var(--bg-outer);
+    font-family:'Cormorant Garamond', serif;
+    overflow:hidden;
+  }
+  #stage{
+    position:relative; width:100vw; height:100vh;
+    display:flex; align-items:center; justify-content:center;
+    background: var(--bg-outer);
+  }
+  #scene{
+    position:relative;
+    width:min(96vw, 170vh);
+    aspect-ratio:16/9;
+    box-shadow:
+      0 0 0 2px var(--accent-border),
+      0 0 60px 10px rgba(255,190,120,0.12),
+      0 30px 90px rgba(0,0,0,0.8);
+    border-radius:4px;
+    overflow:hidden;
+    background:#0d1420;
+  }
+  #art{
+    position:absolute; inset:0;
+    width:100%; height:100%;
+    image-rendering:pixelated;
+    image-rendering:-moz-crisp-edges;
+    image-rendering:crisp-edges;
+    cursor:default;
+  }
+  #vignette{
+    position:absolute; inset:0; pointer-events:none;
+    background: radial-gradient(ellipse at 50% 55%, rgba(0,0,0,0) 45%, rgba(0,0,0,0.5) 100%);
+  }
+  #grain{
+    position:absolute; inset:0; pointer-events:none; opacity:0.045; mix-blend-mode:overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  #flash{
+    position:absolute; inset:0; background:#fff; opacity:0; pointer-events:none;
+    transition:opacity 0.4s ease;
+  }
+  #flash.on{ opacity:1; }
+  #soundToggle{
+    position:absolute; top:3%; right:3%;
+    font-family:'Press Start 2P', monospace; font-size:9px; color:var(--accent);
+    background:rgba(15,15,10,0.45); border:1px solid var(--accent-border);
+    border-radius:6px; padding:7px 10px; cursor:pointer; letter-spacing:0.5px;
+    transition:background 0.3s;
+  }
+  #soundToggle:hover{ background:rgba(60,50,20,0.6); }
+  #soundToggle.on{ color:#1a1a0e; background:#ffd6a0; }
+
+  /* Falas ficam fora do canvas: texto anti-aliased, nítido e fácil de ler. */
+  #dialogueLayer{
+    position:absolute; inset:0; z-index:7; pointer-events:none; overflow:hidden;
+  }
+  .animalDialogue{
+    position:absolute; min-width:58px; max-width:min(145px,32vw);
+    padding:4px 7px 5px; border-radius:10px;
+    background:rgba(255,251,241,0.96); color:#30251c;
+    border:1px solid rgba(83,58,38,0.32);
+    box-shadow:0 4px 10px rgba(0,0,0,0.18);
+    font-family:Georgia,'Times New Roman',serif;
+    font-size:clamp(9px,1vw,12px); line-height:1.12;
+    font-weight:600; letter-spacing:0; text-align:center;
+    opacity:0; transform:translate(-50%, calc(-100% - 3px)) scale(.94);
+    transition:opacity .32s ease, transform .32s ease;
+    will-change:left,top,opacity,transform;
+  }
+  .animalDialogue.show{
+    opacity:1; transform:translate(-50%, calc(-100% - 6px)) scale(1);
+  }
+  .animalDialogue::after{
+    content:""; position:absolute; left:50%; bottom:-5px;
+    width:9px; height:9px; background:rgba(255,251,241,0.96);
+    border-right:1px solid rgba(83,58,38,0.28);
+    border-bottom:1px solid rgba(83,58,38,0.28);
+    transform:translateX(-50%) rotate(45deg);
+  }
+  .animalDialogue.flip::after{
+    bottom:auto; top:-5px; transform:translateX(-50%) rotate(225deg);
+  }
+  .animalDialogue.leftTail::after{ left:18px; }
+  .animalDialogue.rightTail::after{ left:calc(100% - 18px); }
+
+  #letterOverlay{
+    position:fixed; inset:0; background:rgba(5,6,4,0.75);
+    display:flex; align-items:center; justify-content:center;
+    opacity:0; pointer-events:none; transition:opacity 0.5s ease; z-index:10;
+  }
+  #letterOverlay.open{ opacity:1; pointer-events:auto; }
+  #letter{
+    width:min(88vw,460px); max-height:82vh; overflow-y:auto;
+    background:linear-gradient(180deg,#fdf3df,#f4e3c1); color:#4a3220;
+    padding:34px 30px 26px; border-radius:3px; box-shadow:0 20px 60px rgba(0,0,0,0.6);
+    font-family:'Cormorant Garamond', serif; font-size:19px; font-style:italic; line-height:1.65;
+    transform:translateY(10px) scale(0.97); transition:transform 0.5s ease;
+    position:relative; border:1px solid rgba(120,80,40,0.25);
+  }
+  #letterOverlay.open #letter{ transform:translateY(0) scale(1); }
+  #letter::before{
+    content:""; position:absolute; inset:8px;
+    border:1px dashed rgba(120,80,40,0.25); pointer-events:none;
+  }
+  #letter p{ margin:0 0 14px; }
+  #closeLetter{
+    display:block; margin:20px auto 0;
+    font-family:'Press Start 2P', monospace; font-size:9px;
+    background:#5a7a4a; color:#fdf3df; border:none; padding:10px 18px;
+    border-radius:4px; cursor:pointer; letter-spacing:0.5px;
+  }
+  #closeLetter:hover{ background:#456238; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="scene">
+    <canvas id="art" width="384" height="216"></canvas>
+    <div id="vignette"></div>
+    <div id="grain"></div>
+    <div id="flash"></div>
+    <div id="dialogueLayer" aria-hidden="true">
+      <div id="dialogueA" class="animalDialogue"></div>
+      <div id="dialogueB" class="animalDialogue"></div>
+    </div>
+    <button id="soundToggle">SOM</button>
+  </div>
+</div>
+
+<div id="letterOverlay">
+  <div id="letter">
+    <p>Minha Bia,</p>
+    <p>Imaginei uma casinha pequena no meio de um campo cheio de flores, cercada de bichinhos e do sossego que só a gente sabe curtir direito. É mais ou menos assim que eu penso o nosso futuro: simples, colorido, e sempre com você do meu lado.</p>
+    <p>Cada passarinho que passou, cada vaga-lume que acendeu, cada flor balançando no vento foi pensado com carinho pra você. Não teve pressa em nada, porque com você eu também não tenho pressa nenhuma: quero viver cada segundo com calma, do jeitinho que a gente gosta.</p>
+    <p>Obrigado por ser o meu lar, minha pessoa favorita, o meu campo de flores no meio do caos. Agora feche essa carta... e olha pro céu.</p>
+    <p style="text-align:right;margin-top:22px;">Com todo o meu amor,<br>Bruno</p>
+    <button id="closeLetter">fechar</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  const canvas = document.getElementById('art');
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  const W = canvas.width, H = canvas.height;
+  const HORIZON = 118;
+
+  const startTime = performance.now();
+  const CYCLE_MS = 220000;
+
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+  function smoothstep(e0,e1,v){ const t = clamp((v-e0)/(e1-e0),0,1); return t*t*(3-2*t); }
+  function randRange(a,b){ return a + Math.random()*(b-a); }
+  function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+  function hexToRgb(hex){ const n = parseInt(hex.slice(1),16); return [(n>>16)&255,(n>>8)&255,n&255]; }
+  function lerpColor(a,b,t){
+    const ca = hexToRgb(a), cb = hexToRgb(b);
+    const r = Math.round(ca[0]+(cb[0]-ca[0])*t);
+    const g = Math.round(ca[1]+(cb[1]-ca[1])*t);
+    const bl = Math.round(ca[2]+(cb[2]-ca[2])*t);
+    return `rgb(${r},${g},${bl})`;
+  }
+  function fillPixelCircle(cx,cy,r,color){
+    r = Math.max(1, Math.round(r));
+    cx = Math.round(cx); cy = Math.round(cy);
+    ctx.fillStyle = color;
+    for (let yy=-r; yy<=r; yy++){
+      const w = Math.round(Math.sqrt(Math.max(0, r*r - yy*yy)));
+      if (w<=0) continue;
+      ctx.fillRect(cx-w, cy+yy, w*2, 1);
+    }
+  }
+
+  // ---------- geometria estática ----------
+  const HOUSE = { leftX:196, rightX:292, roofPeakY:80, eaveY:120, baseY:190, chimneyX:270, chimneyTopY:66 };
+  const DOOR = { x:236, y:190, w:14, h:28 };
+  const PASTURE = { x1:10, y1:136, x2:150, y2:194 };
+  const coupleX = 210, coupleY = 192;
+  const ROAD = { x1:158, y1:196, x2:196, y2:210 }; // trilha de terra entre o pasto e a casa
+
+  // ---------- fase do dia (usada para modular comportamento, não só cor) ----------
+  // manha: 0 - 0.28 | tarde: 0.28 - 0.55 | entardecer: 0.55 - 0.78 | noite: 0.78 - 1
+  function timePhase(t){
+    if (t < 0.28) return 'manha';
+    if (t < 0.55) return 'tarde';
+    if (t < 0.78) return 'entardecer';
+    return 'noite';
+  }
+  function isDayish(t){ return t < 0.6; }
+
+  // texto -> pontos (para a mensagem final de estrelas)
+  function renderTextMask(lines, fontPx, maxWidth){
+    const off = document.createElement('canvas');
+    const lineHeight = Math.round(fontPx*1.3);
+    off.width = maxWidth;
+    off.height = lines.length*lineHeight + Math.round(fontPx*0.7);
+    const octx = off.getContext('2d');
+    octx.fillStyle = '#fff';
+    octx.textAlign = 'center';
+    octx.textBaseline = 'middle';
+    octx.font = `bold ${fontPx}px Georgia, 'Times New Roman', serif`;
+    lines.forEach((line,i)=>{
+      octx.fillText(line, maxWidth/2, Math.round(fontPx*0.68) + i*lineHeight);
+    });
+    const { data } = octx.getImageData(0,0,off.width, off.height);
+    const points = [];
+    for (let y=0;y<off.height;y++){
+      for (let x=0;x<off.width;x++){
+        if (data[(y*off.width+x)*4+3] > 140) points.push({x,y});
+      }
+    }
+    return { points, width: off.width, height: off.height };
+  }
+
+  const closingLines = ['BIA,', 'EU TE AMO'];
+  const closingMask = renderTextMask(closingLines, 22, 340);
+  const closingOffsetX = (W - closingMask.width)/2;
+  const closingOffsetY = 62;
+  const closingStars = [];
+  for (let i=0;i<closingMask.points.length;i++){
+    const p = closingMask.points[i];
+    closingStars.push({
+      x: p.x + closingOffsetX,
+      y: p.y + closingOffsetY,
+      phase: Math.random()*Math.PI*2,
+      speed: 0.7 + Math.random()*1.6,
+      delay: Math.random()*2600,
+      r: Math.random() < 0.22 ? 2 : 1
+    });
+  }
+  const finaleStars = Array.from({length:150}, () => ({
+    x: Math.round(Math.random()*W),
+    y: Math.round(Math.random()*H*0.9),
+    r: Math.random() < 0.15 ? 2 : 1,
+    phase: Math.random()*Math.PI*2,
+    speed: 0.6 + Math.random()*1.6
+  }));
+
+  // ---------- céu: estrelas, nuvens ----------
+  const stars = Array.from({length:90}, () => ({
+    x: Math.round(Math.random()*W),
+    y: Math.round(Math.random()*(HORIZON-8)),
+    r: Math.random() < 0.15 ? 2 : 1,
+    phase: Math.random()*Math.PI*2,
+    speed: 0.6 + Math.random()*1.8,
+    base: 0.35 + Math.random()*0.65
+  }));
+  const clouds = Array.from({length:4}, () => ({
+    x: Math.random()*W,
+    y: 10+Math.random()*28,
+    speed: 0.006+Math.random()*0.012,
+    w: 16+Math.random()*12
+  }));
+  function updateClouds(){
+    for (const c of clouds){ c.x += c.speed; if (c.x > W+20) c.x = -20; }
+  }
+
+  // ---------- vento: brisa contínua + rajadas perceptíveis em cadeia ----------
+  // a rajada tem começo (folhas mexem), meio (flores/árvores balançam, folhas cruzam a tela)
+  // e fim (tudo se acalma) — ver seção "EventManager" para o encadeamento com outros sistemas.
+  let windBase = 0;
+  let gustState = 'calm', gustPhaseT = 0, gustStrength = 0, gustDir = 1;
+  let gustTimer = randRange(9000,16000);
+  function updateWind(dt, now){
+    windBase = Math.sin(now*0.0002)*0.3;
+    if (gustState === 'calm'){
+      gustTimer -= dt;
+      if (gustTimer <= 0){
+        gustState = 'building'; gustPhaseT = 0;
+        gustDir = Math.random() < 0.5 ? 1 : -1;
+      }
+    } else if (gustState === 'building'){
+      gustPhaseT += dt;
+      gustStrength = smoothstep(0,900,gustPhaseT);
+      if (gustPhaseT > 900){ gustState = 'peak'; gustPhaseT = 0; onGustPeak(); }
+    } else if (gustState === 'peak'){
+      gustPhaseT += dt; gustStrength = 1;
+      if (gustPhaseT > 700){ gustState = 'fading'; gustPhaseT = 0; }
+    } else if (gustState === 'fading'){
+      gustPhaseT += dt;
+      gustStrength = 1 - smoothstep(0,1900,gustPhaseT);
+      if (gustPhaseT > 1900){ gustState = 'calm'; gustStrength = 0; gustTimer = randRange(16000,30000); }
+    }
+  }
+  function currentWind(){ return windBase*0.6 + gustStrength*2.2*gustDir; }
+  function windIntensity(){ return gustStrength; } // 0..1, usado por som/folhas/animais
+  function onGustPeak(){
+    spawnGustLeaves();
+    dogNoticeWind();
+    bumpWindSound();
+  }
+
+  // ---------- EventManager ----------
+  // Motor único para os eventos "de vez em quando" e "raros" do cenário.
+  // Cada evento tem: intervalo (cooldown), chance, locks (evita eventos
+  // incompatíveis simultâneos), start/update/end (permite eventos em cadeia
+  // com começo-meio-fim, em vez de um monte de "if" soltos pelo código).
+  const EventManager = (() => {
+    const defs = {};
+    const cooldown = {};
+    const activeSeq = {};
+    const locksHeld = new Set();
+    function register(id, def){ defs[id] = def; cooldown[id] = randRange(def.interval[0], def.interval[1]); }
+    function locksFree(locks){ for (const l of locks) if (locksHeld.has(l)) return false; return true; }
+    function acquire(locks){ for (const l of locks) locksHeld.add(l); }
+    function release(locks){ for (const l of locks) locksHeld.delete(l); }
+    function isLocked(l){ return locksHeld.has(l); }
+    function isActive(id){ return !!activeSeq[id]; }
+    function tick(dt, t, now){
+      for (const id in defs){
+        if (activeSeq[id]) continue;
+        const def = defs[id];
+        if (def.allowed && !def.allowed(t)) continue;
+        cooldown[id] -= dt;
+        if (cooldown[id] <= 0){
+          cooldown[id] = randRange(def.interval[0], def.interval[1]);
+          if (!locksFree(def.locks||[])) continue;
+          if (Math.random() <= (def.chance!==undefined ? def.chance : 1)){
+            let state = {};
+            if (def.start){
+              const r = def.start(now);
+              if (r === false) continue; // as condições não permitiram começar agora
+              state = r || {};
+            }
+            state._age = 0;
+            activeSeq[id] = state;
+            acquire(def.locks||[]);
+          }
+        }
+      }
+      for (const id in activeSeq){
+        const def = defs[id];
+        const state = activeSeq[id];
+        state._age += dt;
+        let keepGoing = false;
+        try { keepGoing = def.update ? def.update(state, dt, now) : false; }
+        catch(e){ keepGoing = false; }
+        if (!keepGoing){
+          if (def.end) { try { def.end(state); } catch(e){} }
+          release(def.locks||[]);
+          delete activeSeq[id];
+        }
+      }
+    }
+    return { register, tick, isLocked, isActive };
+  })();
+
+  // ---------- morro e floresta densa de fundo ----------
+  // Três fileiras de árvores criam profundidade e deixam o horizonte bem mais vivo.
+  const backTrees = [
+    ...Array.from({length:34}, (_,i) => ({
+      x:(i*(W/33))+randRange(-5,5),
+      y:HORIZON-5+randRange(-4,1),
+      s:randRange(0.28,0.5),
+      layer:0, tone:Math.random()
+    })),
+    ...Array.from({length:30}, (_,i) => ({
+      x:(i*(W/29))+randRange(-8,8),
+      y:HORIZON-1+randRange(-4,3),
+      s:randRange(0.42,0.68),
+      layer:1, tone:Math.random()
+    })),
+    ...Array.from({length:22}, (_,i) => ({
+      x:(i*(W/21))+randRange(-10,10),
+      y:HORIZON+3+randRange(-3,4),
+      s:randRange(0.6,0.9),
+      layer:2, tone:Math.random()
+    }))
+  ];
+
+  function drawBackTree(b, t){
+    const night = t;
+    const palette = b.layer===0
+      ? [lerpColor('#80a969','#25362b',night), lerpColor('#9abd7d','#314539',night)]
+      : b.layer===1
+      ? [lerpColor('#5e8e51','#1d2d23',night), lerpColor('#78a95f','#273c2e',night)]
+      : [lerpColor('#466f42','#15231c',night), lerpColor('#5e8d4f','#1d2f24',night)];
+    const base = palette[0], hi = palette[1];
+    const sway = Math.sin(performance.now()*0.0007 + b.x*0.07) * (0.35+b.s*0.6);
+    const x = b.x+sway;
+    const y = b.y;
+    const trunkW = Math.max(1,Math.round(1.4*b.s));
+    const trunkH = Math.max(3,Math.round(7*b.s));
+    ctx.fillStyle = night>0.6 ? 'rgba(26,34,28,0.65)' : 'rgba(70,61,45,0.72)';
+    ctx.fillRect(Math.round(x-trunkW/2), Math.round(y-trunkH+2), trunkW, trunkH);
+
+    const blobs = [
+      [-7,-10,6],[-2,-14,7],[5,-11,7],[0,-7,8],
+      [-4,-19,5],[4,-18,5]
+    ];
+    for (const [bx,by,br] of blobs){
+      fillPixelCircle(x+bx*b.s, y+by*b.s, br*b.s, base);
+    }
+    for (const [bx,by,br] of blobs){
+      fillPixelCircle(x+(bx-br*0.22)*b.s, y+(by-br*0.22)*b.s, Math.max(1,br*b.s*0.34), hi);
+    }
+  }
+
+  function drawBackHillAndTrees(t){
+    const hillCol = lerpColor('#7fa863','#243328', t);
+    ctx.fillStyle = hillCol;
+    ctx.fillRect(0, HORIZON-8, W, 11);
+
+    // Faixa irregular de vegetação distante atrás das copas.
+    ctx.fillStyle = lerpColor('#6f975b','#203126', t);
+    for (let x=0; x<W; x+=5){
+      const h = 3 + Math.round(2*Math.sin(x*0.17) + 1.4*Math.sin(x*0.43+0.7));
+      ctx.fillRect(x, HORIZON-3-h, 5, h+3);
+    }
+
+    const ordered = [...backTrees].sort((a,b)=>a.layer-b.layer);
+    for (const b of ordered) drawBackTree(b,t);
+  }
+
+  // ---------- chão / grama ----------
+  function drawGround(t){
+    const topCol = lerpColor('#8bbf6a','#233a2a', Math.min(1,t*1.3));
+    const botCol = lerpColor('#5f9a4a','#16241a', Math.min(1,t*1.3));
+    const grad = ctx.createLinearGradient(0,HORIZON,0,H);
+    grad.addColorStop(0, topCol);
+    grad.addColorStop(1, botCol);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, HORIZON, W, H-HORIZON);
+  }
+  const blades = Array.from({length:240}, () => ({
+    x: Math.random()*W,
+    y: HORIZON+6+Math.random()*(H-HORIZON-8),
+    h: 2+Math.random()*3,
+    phase: Math.random()*Math.PI*2,
+    cluster: Math.floor(Math.random()*7)
+  }));
+  function drawBlades(timeSec, wind){
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 1;
+    for (const b of blades){
+      const clusterWobble = Math.sin(timeSec*0.35+b.cluster*1.7)*0.4;
+      const sway = Math.sin(timeSec*1.2+b.phase)*1 + wind*2 + clusterWobble;
+      ctx.beginPath();
+      ctx.moveTo(Math.round(b.x), Math.round(b.y));
+      ctx.lineTo(Math.round(b.x+sway), Math.round(b.y-b.h));
+      ctx.stroke();
+    }
+  }
+
+  // ---------- camada de detalhes ambientais (preenchimento + profundidade) ----------
+  // Tudo aqui é estático (não anima), só dá corpo e composição à cena: pedras,
+  // gravetos, touceiras de grama mais grossas, terra batida, raízes, folhas
+  // acumuladas e vasinhos perto da casa. Dividido em fundo/meio/frente para dar
+  // sensação de profundidade sem poluir visualmente.
+  function inHouseOrPasture(x,y){
+    const overHouse = x > HOUSE.leftX-10 && x < HOUSE.rightX+10 && y < HOUSE.baseY+4;
+    const overPasture = x > PASTURE.x1-6 && x < PASTURE.x2+6 && y > PASTURE.y1-6 && y < PASTURE.y2+6;
+    return overHouse || overPasture;
+  }
+
+  // pedrinhas espalhadas (mais perto do caminho e nas bordas do campo)
+  const rocks = [];
+  for (let i=0;i<26;i++){
+    let x,y;
+    if (i < 10){ x = randRange(ROAD.x1-14, ROAD.x2+30); y = randRange(ROAD.y1-4, ROAD.y2+4); }
+    else { x = randRange(0,W); y = randRange(HORIZON+10,H-4); }
+    if (inHouseOrPasture(x,y)) continue;
+    rocks.push({ x, y, s: randRange(0.6,1.5), tone: Math.random()<0.5?'#8a8378':'#6f6a60' });
+  }
+  function drawRocks(){
+    for (const r of rocks){
+      const w = Math.max(2,Math.round(3*r.s)), h = Math.max(1,Math.round(2*r.s));
+      ctx.fillStyle = r.tone;
+      ctx.fillRect(Math.round(r.x-w/2), Math.round(r.y-h/2), w, h);
+      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      ctx.fillRect(Math.round(r.x-w/2), Math.round(r.y-h/2), 1, 1);
+      ctx.fillStyle = 'rgba(0,0,0,0.22)';
+      ctx.fillRect(Math.round(r.x-w/2), Math.round(r.y+h/2), w, 1);
+    }
+  }
+
+  // gravetos finos
+  const twigs = Array.from({length:12}, () => {
+    let x,y;
+    do { x = randRange(0,W); y = randRange(HORIZON+14,H-6); } while (inHouseOrPasture(x,y));
+    return { x, y, len: randRange(3,6), ang: randRange(-0.6,0.6) };
+  });
+  function drawTwigs(){
+    ctx.strokeStyle = '#6a5236';
+    ctx.lineWidth = 1;
+    for (const tw of twigs){
+      ctx.beginPath();
+      ctx.moveTo(Math.round(tw.x-Math.cos(tw.ang)*tw.len), Math.round(tw.y));
+      ctx.lineTo(Math.round(tw.x+Math.cos(tw.ang)*tw.len), Math.round(tw.y-Math.sin(tw.ang)*tw.len*0.6));
+      ctx.stroke();
+    }
+  }
+
+  // touceiras de grama mais grossas (moitas baixas), algumas em primeiro plano
+  const tufts = [];
+  for (let i=0;i<34;i++){
+    let x,y;
+    do { x = randRange(0,W); y = randRange(HORIZON+8,H-2); } while (inHouseOrPasture(x,y));
+    const depth = (y-HORIZON)/(H-HORIZON);
+    tufts.push({ x, y, s: 0.5+depth*1.1, phase: Math.random()*Math.PI*2, fg: y > H-26 });
+  }
+  function drawTufts(timeSec, wind, foregroundOnly){
+    for (const tu of tufts){
+      if (!!foregroundOnly !== !!tu.fg) continue;
+      const sway = (Math.sin(timeSec*0.9+tu.phase)*1 + wind*1.6) * tu.s;
+      const x = tu.x, y = tu.y, s = tu.s;
+      ctx.strokeStyle = tu.fg ? '#3c6a35' : '#4c7a42';
+      ctx.lineWidth = Math.max(1, Math.round(s));
+      for (let i=-1;i<=1;i++){
+        ctx.beginPath();
+        ctx.moveTo(Math.round(x+i*2*s), Math.round(y));
+        ctx.lineTo(Math.round(x+i*1.4*s+sway), Math.round(y-5*s));
+        ctx.stroke();
+      }
+    }
+  }
+
+  // moitas (arbustos baixos e redondos) — o coelho pode se esconder aqui
+  const bushes = [
+    { x:24, y:198, s:1.1 }, { x:352, y:180, s:1.0 }, { x:132, y:206, s:0.9 },
+    { x:300, y:160, s:0.8 }, { x:8, y:150, s:0.9 }
+  ].filter(b => !inHouseOrPasture(b.x,b.y));
+  function drawBushes(timeSec, wind){
+    for (const b of bushes){
+      const sway = (Math.sin(timeSec*0.5+b.x)*0.6 + wind*1.2)*b.s;
+      const blobs = [[0,-6,6],[-5,-4,4.5],[5,-4,4.5],[0,-2,5]];
+      for (const [bx,by,br] of blobs){ fillPixelCircle(b.x+bx*b.s+sway, b.y+by*b.s, br*b.s, '#3f6a3a'); }
+      fillPixelCircle(b.x-2*b.s+sway, b.y-6*b.s, 2*b.s, '#5a8a4e');
+    }
+  }
+
+  // terra batida / marcas de caminho perto da casa e do curral
+  const dirtPatches = [
+    { x:220, y:205, w:46, h:10 }, { x:170, y:200, w:22, h:6 }, { x:60, y:192, w:26, h:6 }
+  ];
+  function drawDirtPatches(){
+    ctx.fillStyle = 'rgba(120,95,60,0.35)';
+    for (const d of dirtPatches){ ctx.fillRect(d.x-d.w/2, d.y-d.h/2, d.w, d.h); }
+    ctx.fillStyle = 'rgba(90,70,45,0.3)';
+    for (let i=0;i<10;i++){
+      const x = ROAD.x1 + (i/9)*(ROAD.x2-ROAD.x1);
+      const y = ROAD.y1 + (i/9)*(ROAD.y2-ROAD.y1);
+      ctx.fillRect(Math.round(x), Math.round(y), 2, 1);
+    }
+  }
+
+  // folhas acumuladas na base das árvores + raízes
+  const leafPiles = [];
+  const rootTrunks = [];
+  function seedLeafPilesAndRoots(treeList){
+    for (const tr of treeList){
+      if (Math.random() < 0.6) leafPiles.push({ x:tr.x+randRange(-6,6)*tr.s, y:tr.y+randRange(1,3)*tr.s, s:tr.s, color: tr.type==='blossom' ? '#e3a8c2' : '#a97a3a' });
+      rootTrunks.push({ x:tr.x, y:tr.y, s:tr.s });
+    }
+  }
+  function drawLeafPiles(){
+    for (const p of leafPiles){
+      ctx.fillStyle = p.color;
+      ctx.fillRect(Math.round(p.x-3*p.s), Math.round(p.y), Math.round(6*p.s), Math.max(1,Math.round(1.5*p.s)));
+      ctx.fillStyle = 'rgba(0,0,0,0.12)';
+      ctx.fillRect(Math.round(p.x-3*p.s), Math.round(p.y+1.5*p.s), Math.round(6*p.s), 1);
+    }
+  }
+  function drawRoots(){
+    ctx.strokeStyle = 'rgba(50,36,22,0.55)';
+    ctx.lineWidth = 1;
+    for (const r of rootTrunks){
+      ctx.beginPath();
+      ctx.moveTo(Math.round(r.x-2*r.s), Math.round(r.y+2));
+      ctx.lineTo(Math.round(r.x-5*r.s), Math.round(r.y+4));
+      ctx.moveTo(Math.round(r.x+2*r.s), Math.round(r.y+2));
+      ctx.lineTo(Math.round(r.x+5*r.s), Math.round(r.y+4));
+      ctx.stroke();
+    }
+  }
+
+  // vasinhos e objetos pequenos ao redor da casa
+  const housePots = [
+    { x: HOUSE.leftX-8, y: HOUSE.baseY-2 }, { x: HOUSE.rightX+8, y: HOUSE.baseY-2 },
+    { x: DOOR.x-8, y: DOOR.y-2 }, { x: DOOR.x+DOOR.w+6, y: DOOR.y-2 }
+  ];
+  function drawHousePots(){
+    for (const p of housePots){
+      ctx.fillStyle = '#8a5a3a';
+      ctx.fillRect(p.x-3, p.y-4, 6, 5);
+      ctx.fillStyle = '#3f6b3a';
+      fillPixelCircle(p.x, p.y-6, 3, '#3f6b3a');
+      ctx.fillStyle = '#ff9fc7';
+      ctx.fillRect(p.x-1, p.y-8, 1, 1);
+      ctx.fillRect(p.x+1, p.y-7, 1, 1);
+    }
+  }
+
+  // pequenas plantinhas perto da cerca
+  const fencePlants = Array.from({length:8}, (_,i) => ({
+    x: PASTURE.x1 + (i/7)*(PASTURE.x2-PASTURE.x1) + randRange(-3,3),
+    y: PASTURE.y2 + randRange(1,4),
+    phase: Math.random()*Math.PI*2
+  }));
+  function drawFencePlants(timeSec, wind){
+    for (const p of fencePlants){
+      const sway = Math.sin(timeSec*0.8+p.phase)*0.6 + wind*1.4;
+      ctx.strokeStyle = '#4c7a42'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(p.x+sway,p.y-4); ctx.stroke();
+      ctx.fillStyle = '#ffe066';
+      ctx.fillRect(Math.round(p.x+sway-0.5), Math.round(p.y-5), 1, 1);
+    }
+  }
+
+  // ---------- cerca / pasto ----------
+  function drawFence(){
+    for (let i=0, x=PASTURE.x1; x<=PASTURE.x2; x+=16, i++){
+      const lean = (i%3===0) ? 1 : 0; // pequena variação entre os postes
+      ctx.fillStyle = '#8a6a48';
+      ctx.fillRect(x+lean, PASTURE.y2-16, 2, 16);
+      if (i%4===2){ ctx.fillStyle = 'rgba(60,45,25,0.35)'; ctx.fillRect(x+lean, PASTURE.y2-16, 1, 5); }
+    }
+    ctx.fillStyle = '#8a6a48';
+    ctx.fillRect(PASTURE.x2, PASTURE.y1, 2, PASTURE.y2-PASTURE.y1);
+    ctx.fillStyle = '#a5825a';
+    ctx.fillRect(PASTURE.x1, PASTURE.y2-13, PASTURE.x2-PASTURE.x1, 2);
+    ctx.fillRect(PASTURE.x1, PASTURE.y2-5, PASTURE.x2-PASTURE.x1, 2);
+  }
+
+  // ---------- vaca ----------
+  const cow = { x:70, y:165, dir:1, state:'walk', stateT:0, atFence:false,
+    mooTimer:randRange(14000,26000), mooing:false, mooT:0 };
+  function setCowState(s){ cow.state = s; cow.stateT = 0; }
+  function updateCow(dt){
+    cow.stateT += dt;
+    cow.mooTimer -= dt;
+    if (cow.mooTimer <= 0 && !cow.mooing){
+      cow.mooing = true; cow.mooT = 0; cow.mooTimer = randRange(22000,42000);
+      playMoo();
+    }
+    if (cow.mooing){ cow.mooT += dt; if (cow.mooT > 1300) cow.mooing = false; }
+
+    const minX = cow.atFence ? 120 : 32, maxX = cow.atFence ? 147 : 118;
+    if (cow.state === 'walk'){
+      cow.x += 0.008*cow.dir;
+      if (cow.x < minX || cow.x > maxX) cow.dir *= -1;
+      if (cow.stateT > randRange(5000,10000)) setCowState(Math.random()<0.55?'graze':'stop');
+    } else if (cow.state === 'stop'){
+      if (cow.stateT > randRange(1500,3000)) setCowState(Math.random()<0.4?'lookup':'walk');
+    } else if (cow.state === 'graze'){
+      if (cow.stateT > randRange(4000,8000)) setCowState('walk');
+    } else if (cow.state === 'lookup'){
+      if (cow.stateT > randRange(1200,2200)) setCowState('walk');
+    }
+  }
+  function drawCow(timeSec){
+    const x = Math.round(cow.x);
+    const headDown = cow.state === 'graze' ? 2 : (cow.state === 'lookup' ? -1 : 0);
+    const y = Math.round(cow.y);
+    ctx.fillStyle = '#f2ede0';
+    ctx.fillRect(x-8,y-8,16,10);
+    ctx.fillStyle = '#2a2620';
+    ctx.fillRect(x-6,y-7+headDown,4,4);
+    ctx.fillRect(x+1,y-4+headDown,5,4);
+    ctx.fillStyle = '#f2ede0';
+    ctx.fillRect(x-12*cow.dir+ (cow.dir>0?-1:0), y-6+headDown, 4, 5);
+    ctx.fillStyle = '#3a3630';
+    ctx.fillRect(x-6,y+2,2,4);
+    ctx.fillRect(x+3,y+2,2,4);
+    const tailSwing = Math.sin(timeSec*2)*2;
+    ctx.strokeStyle = '#3a3630';
+    ctx.beginPath(); ctx.moveTo(x+8,y-4); ctx.lineTo(x+8+tailSwing, y+1); ctx.stroke();
+    if (cow.mooing){
+      const a = 1 - cow.mooT/1300;
+      ctx.save(); ctx.globalAlpha = Math.max(0,a);
+      fillPixelCircle(x-13, y-13, 1.6, '#ffffff');
+      ctx.restore(); ctx.globalAlpha = 1;
+    }
+  }
+
+  // ---------- ovelhas (duas, podem se notar) ----------
+  const sheepFlock = [
+    { x:128, y:172, dir:1, state:'walk', stateT:0, bounceT:Math.random()*10 },
+    { x:110, y:177, dir:-1, state:'walk', stateT:0, bounceT:Math.random()*10 }
+  ];
+  function updateSheepOne(s, dt, other){
+    s.bounceT += dt*0.001;
+    s.stateT += dt;
+    if (s.state === 'walk'){
+      s.x += 0.006*s.dir;
+      if (s.x < 100 || s.x > 144) s.dir *= -1;
+      if (Math.abs(s.x-other.x) < 7 && Math.random() < 0.0015 && other.state==='walk'){
+        s.state = 'look'; s.stateT = 0; s.dir = s.x < other.x ? 1 : -1;
+      } else if (s.stateT > randRange(5000,10000)){
+        s.state = Math.random()<0.5?'stop':'eat'; s.stateT = 0;
+      }
+    } else if (s.state === 'stop'){
+      if (s.stateT > randRange(1200,2500)) { s.state = Math.random()<0.25?'run':'walk'; s.stateT=0; }
+    } else if (s.state === 'eat'){
+      if (s.stateT > randRange(3000,6500)) { s.state='walk'; s.stateT=0; }
+    } else if (s.state === 'look'){
+      if (s.stateT > randRange(1400,2400)) { s.state='walk'; s.stateT=0; }
+    } else if (s.state === 'run'){
+      s.x += 0.03*s.dir;
+      if (s.x < 98 || s.x > 146) s.dir *= -1;
+      if (s.stateT > randRange(500,1000)) { s.state='walk'; s.stateT=0; }
+    }
+  }
+  function updateSheep(dt){
+    updateSheepOne(sheepFlock[0], dt, sheepFlock[1]);
+    updateSheepOne(sheepFlock[1], dt, sheepFlock[0]);
+  }
+  function drawSheepOne(s){
+    const eating = s.state === 'eat' ? 1.5 : 0;
+    const x = Math.round(s.x), y = Math.round(s.y + Math.sin(s.bounceT*2)*0.6 + eating);
+    fillPixelCircle(x, y-4+eating*0.5, 5, '#efe9df');
+    ctx.fillStyle = '#3a3630';
+    ctx.fillRect(x-7*s.dir-1, y-4+eating, 3, 3);
+    ctx.fillRect(x-5,y+1,1,3); ctx.fillRect(x+3,y+1,1,3);
+  }
+  function drawSheep(){ for (const s of sheepFlock) drawSheepOne(s); }
+
+  // ---------- galinhas + galo ----------
+  const chickens = [
+    { x:48, y:186, dir:1, walkT:0, peckTimer:randRange(3000,6000), pecking:false, peckT:0, eggTimer:randRange(18000,32000), state:'walk', stateT:0 },
+    { x:96, y:181, dir:-1, walkT:0, peckTimer:randRange(3000,6000), pecking:false, peckT:0, eggTimer:randRange(22000,38000), state:'walk', stateT:0 }
+  ];
+  let eggs = [];
+  function updateChicken(c, dt){
+    c.walkT += dt; c.stateT += dt;
+    const speed = c.state === 'flee' ? 0.05 : 0.006;
+    c.x += speed*c.dir;
+    if (c.x < 22 || c.x > 140) c.dir *= -1;
+    if (c.state === 'walk'){
+      c.peckTimer -= dt;
+      if (c.peckTimer <= 0 && !c.pecking){ c.pecking = true; c.peckT = 0; c.peckTimer = randRange(4000,9000); }
+      if (c.pecking){ c.peckT += dt; if (c.peckT > 600) c.pecking = false; }
+      c.eggTimer -= dt;
+      if (c.eggTimer <= 0){
+        eggs.push({ x:c.x-4, y:c.y+3 });
+        c.eggTimer = randRange(28000,50000);
+        spawnSparkleAt(c.x-4, c.y+2);
+        playCluck();
+        if (eggs.length > 6) eggs.shift();
+      }
+    } else if (c.state === 'flee'){
+      if (c.stateT > randRange(700,1300)){ c.state='walk'; c.stateT=0; }
+    } else if (c.state === 'startled'){
+      if (c.stateT > randRange(500,900)){ c.state='walk'; c.stateT=0; }
+    }
+    // uma galinha ocasionalmente segue a outra
+    if (c.state === 'walk' && Math.random() < 0.00006){
+      const other = chickens.find(o => o!==c);
+      if (other) c.dir = c.x < other.x ? 1 : -1;
+    }
+  }
+  function spookChickens(fromX){
+    for (const c of chickens){ c.state='flee'; c.stateT=0; c.dir = c.x < fromX ? -1 : 1; }
+  }
+  function startleChickens(){
+    for (const c of chickens){ if (c.state==='walk'){ c.state='startled'; c.stateT=0; } }
+  }
+  function drawChicken(c){
+    const x = Math.round(c.x), y = Math.round(c.y);
+    let bob = c.pecking ? Math.sin((c.peckT/600)*Math.PI)*2 : Math.sin(c.walkT*0.005)*0.6;
+    if (c.state === 'startled') bob = -2;
+    ctx.fillStyle = '#f5f0e6';
+    ctx.fillRect(x-4, Math.round(y-6+bob), 8, 6);
+    ctx.fillStyle = '#d94a3a';
+    ctx.fillRect(x+2*c.dir, Math.round(y-8+bob), 2, 2);
+    ctx.fillStyle = '#e8952a';
+    ctx.fillRect(x+4*c.dir, Math.round(y-4+bob), 2, 1);
+    ctx.fillStyle = '#3a3630';
+    ctx.fillRect(x-2,y,1,2);
+    ctx.fillRect(x+1,y,1,2);
+  }
+  function drawEggs(){
+    ctx.fillStyle = '#f5ecd6';
+    for (const e of eggs){ ctx.fillRect(Math.round(e.x), Math.round(e.y), 3, 4); }
+  }
+  const rooster = { x:148, y:150, crowTimer:randRange(18000,32000), crowing:false, crowT:0 };
+  function updateRooster(dt){
+    rooster.crowTimer -= dt;
+    if (rooster.crowTimer <= 0 && !rooster.crowing){
+      rooster.crowing = true; rooster.crowT = 0; rooster.crowTimer = randRange(24000,44000);
+      playCluck();
+      startleChickens();
+    }
+    if (rooster.crowing){ rooster.crowT += dt; if (rooster.crowT > 900) rooster.crowing = false; }
+  }
+  function drawRooster(){
+    const x = Math.round(rooster.x), y = Math.round(rooster.y);
+    const flap = rooster.crowing ? Math.sin((rooster.crowT/900)*Math.PI)*2 : 0;
+    ctx.fillStyle = '#3a2a20';
+    ctx.fillRect(x-3, y-9, 7, 7);
+    ctx.fillStyle = '#d94a3a';
+    ctx.fillRect(x-1, Math.round(y-12-flap), 3, 3);
+    ctx.fillStyle = '#e8952a';
+    ctx.fillRect(x-5, y-6, 2, 1);
+    ctx.fillStyle = '#2a1c14';
+    ctx.fillRect(x-2, y-2, 1, 3);
+    ctx.fillRect(x+1, y-2, 1, 3);
+  }
+
+  // ---------- cachorro (com estados de verdade) ----------
+  const dog = { x:180, y:200, dir:1, tailPhase:0, state:'walk', stateT:0 };
+  function dogSetState(s){ dog.state = s; dog.stateT = 0; }
+  function dogNoticeWind(){
+    if (dog.state === 'walk' || dog.state === 'stop') dogSetState('lookAt');
+  }
+  function updateDog(dt){
+    dog.tailPhase += dt*0.01;
+    dog.stateT += dt;
+    switch (dog.state){
+      case 'walk':
+        dog.x += 0.02*dog.dir;
+        if (dog.x < 160 || dog.x > 260) dog.dir *= -1;
+        if (dog.stateT > randRange(4500,9000)){
+          const r = Math.random();
+          if (r < 0.24) dogSetState('stop');
+          else if (r < 0.40) dogSetState('sit');
+          else if (r < 0.54) dogSetState('approachCouple');
+          else if (r < 0.68) dogSetState('playHouse');
+          else dogSetState('walk');
+        }
+        break;
+      case 'stop':
+        if (dog.stateT > randRange(1200,2400)) dogSetState(Math.random()<0.4?'scratch':'walk');
+        break;
+      case 'scratch':
+        if (dog.stateT > randRange(900,1500)) dogSetState('walk');
+        break;
+      case 'sit':
+        if (dog.stateT > randRange(2500,4500)) dogSetState(Math.random()<0.5?'wag':'walk');
+        break;
+      case 'wag':
+        if (dog.stateT > randRange(1200,2000)) dogSetState('walk');
+        break;
+      case 'lookAt':
+        if (dog.stateT > randRange(900,1700)) dogSetState('walk');
+        break;
+      case 'approachCouple': {
+        const tx = coupleX + 15;
+        const dx = tx - dog.x;
+        dog.dir = dx > 0 ? 1 : -1;
+        dog.x += 0.035*Math.sign(dx || 1);
+        if (Math.abs(dx) < 3 || dog.stateT > 6500) dogSetState('sitNearCouple');
+        break;
+      }
+      case 'sitNearCouple':
+        if (dog.stateT > randRange(3000,5500)) dogSetState('walk');
+        break;
+      case 'playHouse': {
+        const tx = HOUSE.leftX - 10;
+        const dx = tx - dog.x;
+        dog.dir = dx > 0 ? 1 : -1;
+        dog.x += 0.03*Math.sign(dx || 1);
+        if (Math.abs(dx) < 3 || dog.stateT > 5500) dogSetState('playing');
+        break;
+      }
+      case 'playing':
+        if (dog.stateT > randRange(2500,4200)) dogSetState('walk');
+        break;
+      case 'chase':
+        break; // controlado pelo EventManager (dogChaseButterfly)
+      case 'runBack':
+        dog.x += 0.05*dog.dir;
+        if (dog.x < 160 || dog.x > 260) dog.dir *= -1;
+        if (dog.stateT > randRange(1200,2000)) dogSetState('walk');
+        break;
+    }
+  }
+  function drawDog(){
+    const x = Math.round(dog.x), y = Math.round(dog.y);
+    const sitting = dog.state === 'sit' || dog.state === 'wag' || dog.state === 'sitNearCouple';
+    const bodyY = sitting ? y-2 : y;
+    ctx.fillStyle = '#a5764a';
+    ctx.fillRect(x-5, bodyY-4, 10, sitting?7:5);
+    ctx.fillRect(x-7*dog.dir-2, y-5, 4, 4);
+    ctx.fillStyle = '#3a2a1a';
+    ctx.fillRect(x-7*dog.dir-2, y-6, 2, 2);
+    const wagging = dog.state === 'wag' || dog.state === 'sitNearCouple' || dog.state === 'playing';
+    const tailWag = Math.sin(dog.tailPhase*(wagging?3:1))*(wagging?3:2);
+    ctx.strokeStyle = '#a5764a';
+    ctx.beginPath(); ctx.moveTo(x+5*dog.dir, bodyY-3); ctx.lineTo(x+7*dog.dir, bodyY-3+tailWag); ctx.stroke();
+    ctx.fillStyle = '#3a2a1a';
+    if (sitting){ ctx.fillRect(x-3,y+2,1,2); ctx.fillRect(x+2,y+2,1,2); }
+    else { ctx.fillRect(x-3,y+1,1,3); ctx.fillRect(x+2,y+1,1,3); }
+    if (dog.state === 'scratch'){
+      const legKick = Math.sin(dog.stateT*0.02)*2;
+      ctx.strokeStyle = '#3a2a1a';
+      ctx.beginPath(); ctx.moveTo(x-2*dog.dir,y-2); ctx.lineTo(x-2*dog.dir-legKick, y-6); ctx.stroke();
+    }
+    if (dog.state === 'wag' || dog.state === 'sitNearCouple'){
+      if (Math.sin(dog.stateT*0.003) > 0.85){
+        drawHeartPixel(x, y-11, 0.6, 0.7, '#e65a6e');
+      }
+    }
+  }
+
+  // ---------- coelho raro (evento em cadeia: aparece → observa → pula → entra na moita → some) ----------
+  let rabbits = [];
+  function drawRabbits(){
+    for (const r of rabbits){
+      const hop = r.phase === 'hop' ? Math.abs(Math.sin(r.hopT*0.02))*3 : (r.phase==='enter' ? Math.abs(Math.sin(r.hopT*0.01))*1.4 : 0);
+      const x = Math.round(r.x), y = Math.round(r.y-hop);
+      ctx.save(); ctx.globalAlpha = r.alpha!==undefined ? r.alpha : 1;
+      ctx.fillStyle = '#e8e0d0';
+      ctx.fillRect(x-2,y-2,4,3);
+      const earUp = r.phase === 'observe';
+      ctx.fillRect(x-3,y-5,1, earUp?4:3);
+      ctx.fillRect(x-1,y-5,1, earUp?4:3);
+      ctx.restore(); ctx.globalAlpha = 1;
+    }
+  }
+  EventManager.register('rabbitAppear', {
+    interval: [46000, 82000],
+    allowed: t => t < 0.86,
+    locks: ['rabbit'],
+    start(){
+      const fromLeft = Math.random() < 0.5;
+      const bush = bushes.length ? pick(bushes) : null;
+      const r = { x: fromLeft?-8:W+8, y:170+Math.random()*24, vx:(fromLeft?1:-1)*0.05, hopT:0, phase:'enter', alpha:1, bush };
+      rabbits.push(r);
+      return { r, dur: randRange(10000,16000) };
+    },
+    update(state, dt){
+      const r = state.r;
+      if (!r) return false;
+      r.hopT += dt;
+      state.phaseT = (state.phaseT||0) + dt;
+      if (r.phase === 'enter'){
+        r.x += r.vx;
+        if (Math.abs(r.x - W/2) < W*0.32 || state.phaseT > 6000){ r.phase='observe'; state.phaseT=0; }
+      } else if (r.phase === 'observe'){
+        if (state.phaseT > randRange(1400,2400)){ r.phase='hop'; state.phaseT=0; r.hopsLeft = 2+Math.floor(Math.random()*3); }
+      } else if (r.phase === 'hop'){
+        r.x += r.vx*1.4;
+        if (state.phaseT > 420){
+          state.phaseT = 0; r.hopsLeft--;
+          if (r.hopsLeft <= 0) r.phase = 'toBush';
+        }
+      } else if (r.phase === 'toBush'){
+        r.x += Math.sign(r.vx)*0.055;
+        if (r.bush) r.y += (r.bush.y - r.y)*0.02;
+        if (state.phaseT > 1800){ r.phase = 'hiding'; state.phaseT = 0; }
+      } else if (r.phase === 'hiding'){
+        r.alpha = Math.max(0, 1 - state.phaseT/500);
+        if (state.phaseT > 500) r.phase = 'gone';
+      }
+      if (r.phase === 'gone' || r.x < -14 || r.x > W+14 || state._age > state.dur){
+        const idx = rabbits.indexOf(r); if (idx>=0) rabbits.splice(idx,1);
+        return false;
+      }
+      return true;
+    },
+    end(state){ if (state.r){ const idx = rabbits.indexOf(state.r); if (idx>=0) rabbits.splice(idx,1); } }
+  });
+
+  // ---------- casinha: fumaça, luzinhas, janelas, vasinhos ----------
+  const fairy = [];
+  {
+    const n = 16;
+    for (let i=0;i<n;i++){
+      const p = i/(n-1);
+      const x = HOUSE.leftX+4 + p*(HOUSE.rightX-HOUSE.leftX-8);
+      const sag = Math.sin(p*Math.PI)*3;
+      const y = HOUSE.eaveY+3+sag;
+      fairy.push({ x, y, phase: Math.random()*Math.PI*2, col: Math.random()<0.5?'#ffd27a':'#ff9fc7' });
+    }
+  }
+  let smoke = [], smokeTimer = 0;
+  function updateSmoke(dt){
+    smokeTimer -= dt;
+    if (smokeTimer <= 0){
+      smoke.push({ x:HOUSE.chimneyX+(Math.random()-0.5)*2, y:HOUSE.chimneyTopY-2, vy:-0.012-Math.random()*0.008, vx:(Math.random()-0.5)*0.01, life:0, maxLife:randRange(4000,7000) });
+      smokeTimer = randRange(500,1100);
+    }
+    const wind = currentWind()*0.006;
+    for (const s of smoke){ s.x += s.vx+wind; s.y += s.vy; s.life += dt; s.vx += (Math.random()-0.5)*0.0015; }
+    smoke = smoke.filter(s => s.life < s.maxLife);
+  }
+  function drawSmoke(){
+    for (const s of smoke){
+      const a = (1 - s.life/s.maxLife)*0.35;
+      const size = 1 + (s.life/s.maxLife)*2;
+      ctx.fillStyle = `rgba(210,210,215,${a})`;
+      ctx.fillRect(Math.round(s.x-size/2), Math.round(s.y-size/2), size, size);
+    }
+  }
+  function drawFairyLights(t, timeSec){
+    const vis = smoothstep(0.4,0.6,t);
+    if (vis <= 0.01) return;
+    for (const f of fairy){
+      const tw = 0.6+0.4*Math.sin(timeSec*2+f.phase);
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = vis*tw;
+      ctx.fillStyle = f.col;
+      ctx.fillRect(Math.round(f.x), Math.round(f.y), 2, 2);
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+  }
+  // estado sutil de "vida" nas janelas: piscada rara + sombra passando + cortina
+  let windowFlicker = 0, windowShadowX = null;
+  function drawWindow(x,y,w,h,glow,curtainPhase){
+    ctx.fillStyle = '#3a2a1e';
+    ctx.fillRect(x-1,y-1,w+2,h+2);
+    let glowNow = glow;
+    if (windowFlicker > 0) glowNow = Math.max(0, glow - 0.4);
+    ctx.fillStyle = glowNow > 0.05 ? lerpColor('#bfe0e8','#ffdd9c', glowNow) : '#bfe0e8';
+    ctx.fillRect(x,y,w,h);
+    if (windowShadowX !== null && windowShadowX > x && windowShadowX < x+w){
+      ctx.fillStyle = 'rgba(40,30,20,0.35)';
+      ctx.fillRect(Math.round(windowShadowX)-1, y+2, 2, h-4);
+    }
+    if (curtainPhase){
+      const sway = Math.sin(curtainPhase)*1.4;
+      ctx.fillStyle = 'rgba(240,200,170,0.35)';
+      ctx.fillRect(x+1, y+1, 2+Math.max(0,sway), h-2);
+    }
+    ctx.fillStyle = '#3a2a1e';
+    ctx.fillRect(Math.round(x+w/2-1), y, 2, h);
+    ctx.fillRect(x, Math.round(y+h/2-1), w, 2);
+    if (glowNow > 0.3){
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = (glowNow-0.3)*0.6;
+      ctx.fillStyle = '#ffdd9c';
+      ctx.fillRect(x-4,y-4,w+8,h+8);
+      ctx.restore(); ctx.globalAlpha = 1;
+    }
+  }
+  function drawFlowerBox(x,y){
+    ctx.fillStyle = '#6a4a30';
+    ctx.fillRect(x-2,y,16,3);
+    const cols = ['#ff6b81','#ffd166','#c77dff','#ff9f6b'];
+    for (let i=0;i<6;i++){ ctx.fillStyle = cols[i%cols.length]; ctx.fillRect(x-1+i*2, y-2, 1, 2); }
+  }
+  // pássaro raro pousando no telhado
+  let roofBird = null;
+  function drawRoofBird(){
+    if (!roofBird) return;
+    const x = Math.round(roofBird.x), y = Math.round(roofBird.y);
+    ctx.fillStyle = '#3a2f2a';
+    ctx.fillRect(x-1,y-1,3,2);
+    ctx.fillRect(x-2,y,1,1);
+  }
+  function drawHouse(t, timeSec){
+    const { leftX, rightX, roofPeakY, eaveY, baseY, chimneyX, chimneyTopY } = HOUSE;
+    const midX = (leftX+rightX)/2;
+
+    ctx.fillStyle = lerpColor('#f2e4c8','#d8c9a6', t*0.4);
+    ctx.fillRect(leftX, eaveY, rightX-leftX, baseY-eaveY);
+    ctx.fillStyle = 'rgba(120,90,60,0.55)';
+    ctx.fillRect(leftX, eaveY, rightX-leftX, 2);
+    for (let x=leftX+6; x<rightX; x+=14){ ctx.fillRect(x, eaveY, 2, baseY-eaveY); }
+    ctx.fillRect(leftX, baseY-2, rightX-leftX, 2);
+
+    ctx.fillStyle = '#8a4a3a';
+    for (let y=roofPeakY; y<=eaveY; y++){
+      const p = (y-roofPeakY)/(eaveY-roofPeakY);
+      const xL = midX - p*(midX-leftX+10);
+      ctx.fillRect(Math.round(xL), y, Math.round(midX-xL), 1);
+    }
+    ctx.fillStyle = '#a5583f';
+    for (let y=roofPeakY; y<=eaveY; y++){
+      const p = (y-roofPeakY)/(eaveY-roofPeakY);
+      const xR = midX + p*(rightX+10-midX);
+      ctx.fillRect(Math.round(midX), y, Math.round(xR-midX), 1);
+    }
+    ctx.fillStyle = '#c97a55';
+    ctx.fillRect(midX-1, roofPeakY, 2, eaveY-roofPeakY);
+    // pequenas telhas em relevo (detalhe no telhado)
+    ctx.fillStyle = 'rgba(60,30,20,0.18)';
+    for (let y=roofPeakY+4; y<eaveY; y+=5){ ctx.fillRect(leftX+6, y, rightX-leftX-12, 1); }
+    drawRoofBird();
+
+    ctx.fillStyle = '#8a7060';
+    ctx.fillRect(chimneyX-4, chimneyTopY, 8, eaveY-chimneyTopY+6);
+    ctx.fillStyle = '#6a5648';
+    ctx.fillRect(chimneyX-5, chimneyTopY-2, 10, 3);
+    drawSmoke();
+
+    ctx.fillStyle = '#6a4a30';
+    ctx.fillRect(DOOR.x, DOOR.y-DOOR.h, DOOR.w, DOOR.h);
+    ctx.fillStyle = '#4a3220';
+    ctx.fillRect(DOOR.x, DOOR.y-DOOR.h, DOOR.w, 2);
+    ctx.fillStyle = '#e8c97a';
+    ctx.fillRect(DOOR.x+DOOR.w-4, DOOR.y-DOOR.h/2, 2, 2);
+    // pequena grinalda na porta
+    ctx.fillStyle = '#5a8a4e';
+    fillPixelCircle(DOOR.x+DOOR.w/2, DOOR.y-DOOR.h-2, 3, '#5a8a4e');
+    ctx.fillStyle = '#ff9f6b';
+    ctx.fillRect(DOOR.x+DOOR.w/2-1, DOOR.y-DOOR.h-3, 1, 1);
+
+    const glow = smoothstep(0.35,0.6,t);
+    const curtainPhase = smoothstep(0.3,0.5,t) > 0.1 ? timeSec*0.6 : 0;
+    drawWindow(leftX+14, eaveY+14, 12, 12, glow, curtainPhase);
+    drawWindow(rightX-26, eaveY+14, 12, 12, glow, 0);
+    drawWindow(midX-4, roofPeakY+16, 8, 8, glow, 0);
+    drawFlowerBox(leftX+12, eaveY+30);
+    drawFlowerBox(rightX-28, eaveY+30);
+    drawHousePots();
+    drawFairyLights(t, timeSec);
+  }
+  // evento raro: "algo acontece na casa" — pisca a janela, sombra passa atrás dela,
+  // cortina mexe, ou um passarinho pousa no telhado por alguns segundos.
+  EventManager.register('houseLife', {
+    interval: [50000, 95000],
+    allowed: () => true,
+    locks: ['house'],
+    start(){
+      const kind = pick(['flicker','shadow','roofbird']);
+      if (kind === 'flicker'){ windowFlicker = 1; return { kind, dur: 260 }; }
+      if (kind === 'shadow'){ windowShadowX = HOUSE.leftX+18; return { kind, dur: 1800, vx:0.02 }; }
+      roofBird = { x:HOUSE.leftX+18, y:HOUSE.roofPeakY+6, vy:-0.06 };
+      return { kind, dur: 4200 };
+    },
+    update(state, dt){
+      if (state.kind === 'shadow'){ windowShadowX += state.vx*dt*0.05; }
+      if (state.kind === 'roofbird' && roofBird){
+        if (state._age < 500){ roofBird.y += roofBird.vy; if (roofBird.y < HOUSE.roofPeakY-2) roofBird.y = HOUSE.roofPeakY-2; }
+      }
+      return state._age < state.dur;
+    },
+    end(state){
+      if (state.kind === 'flicker') windowFlicker = 0;
+      if (state.kind === 'shadow') windowShadowX = null;
+      if (state.kind === 'roofbird') roofBird = null;
+    }
+  });
+
+  // ---------- árvores ----------
+  const trees = [
+    { x:14,  y:150, s:1.6, type:'green' },
+    { x:372, y:140, s:1.5, type:'green' },
+    { x:150, y:176, s:1.0, type:'blossom' },
+    { x:168, y:168, s:1.3, type:'swing' },
+    { x:60,  y:188, s:0.85, type:'green' },
+    { x:340, y:192, s:0.9, type:'apple' },
+    { x:100, y:198, s:0.7, type:'green' },
+    { x:320, y:150, s:1.1, type:'blossom' },
+    { x:40,  y:160, s:1.0, type:'green' }
+  ];
+  seedLeafPilesAndRoots(trees);
+  function drawTree(tr, timeSec, wind){
+    const { x, y, s } = tr;
+    const branchWind = wind*2.2 + Math.sin(timeSec*1.7+x*0.4)*0.35; // copa reage um pouco separada do tronco
+    const sway = (Math.sin(timeSec*0.6+x*0.15)*1.2 + branchWind) * s;
+    ctx.fillStyle = '#4a3626';
+    ctx.fillRect(Math.round(x-2*s), Math.round(y-2*s), Math.max(2,Math.round(4*s)), Math.round(16*s));
+    ctx.fillStyle = '#33251a';
+    ctx.fillRect(Math.round(x-2*s), Math.round(y-2*s), 1, Math.round(16*s));
+
+    let base = '#3f6b3a', hi = '#63a058', fruit = null;
+    if (tr.type === 'blossom'){ base = '#d98fb0'; hi = '#f6c8de'; }
+    if (tr.type === 'apple'){ fruit = '#d94a3a'; }
+
+    const blobs = [[0,-19,10],[-8,-13,8],[8,-13,8],[0,-9,9],[-4,-24,7],[5,-23,7]];
+    for (const [bx,by,br] of blobs){ fillPixelCircle(x+bx*s+sway, y+by*s, br*s, base); }
+    for (const [bx,by,br] of blobs){ fillPixelCircle(x+(bx-br*0.3)*s+sway, y+(by-br*0.3)*s, br*s*0.45, hi); }
+
+    if (fruit){
+      const spots = [[-6,-15],[7,-11],[-2,-22],[4,-16],[-8,-9]];
+      ctx.fillStyle = fruit;
+      for (const [fx,fy] of spots){
+        const sz = Math.max(1, Math.round(2*s*0.6));
+        ctx.fillRect(Math.round(x+fx*s+sway-sz/2), Math.round(y+fy*s-sz/2), sz, sz);
+      }
+    }
+    if (tr.type === 'swing'){
+      const ropeTopX = x+2*s+sway, ropeTopY = y-14*s;
+      const swingSway = Math.sin(timeSec*0.5+1)*3*s;
+      const tireX = ropeTopX+swingSway, tireY = ropeTopY+16*s;
+      ctx.strokeStyle = 'rgba(80,60,40,0.8)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(ropeTopX,ropeTopY); ctx.lineTo(tireX,tireY); ctx.stroke();
+      fillPixelCircle(tireX, tireY+3*s, 3*s, '#2a2018');
+      fillPixelCircle(tireX, tireY+3*s, 1.3*s, '#0d0a08');
+    }
+  }
+
+  // ---------- flores ----------
+  const FLOWER_TYPES = [
+    { petals:'#ff6b81', center:'#ffe066' },
+    { petals:'#ffffff', center:'#ffe066' },
+    { petals:'#c77dff', center:'#fff3b0' },
+    { petals:'#ff9f4a', center:'#7a4a2a' },
+    { petals:'#ffe066', center:'#8a5a2a' }
+  ];
+  let flowers = [];
+  for (let i=0;i<120;i++){
+    const y = 134+Math.random()*80;
+    const depth = (y-134)/80;
+    flowers.push({
+      x: Math.random()*W, y,
+      type: FLOWER_TYPES[Math.floor(Math.random()*FLOWER_TYPES.length)],
+      size: 0.6+depth*0.8,
+      phase: Math.random()*Math.PI*2,
+      speed: 0.5+Math.random()*0.5,
+      openness: 1, pollen: Math.random() < 0.12
+    });
+  }
+  flowers = flowers.filter(f => {
+    const overHouse = f.x > HOUSE.leftX-6 && f.x < HOUSE.rightX+6 && f.y < HOUSE.baseY-8;
+    const overPasture = f.x > PASTURE.x1-4 && f.x < PASTURE.x2+4 && f.y > PASTURE.y1-4 && f.y < PASTURE.y2+4;
+    return !overHouse && !overPasture;
+  });
+  // um pequeno grupo de flores em primeiro plano, bem maiores, pra dar profundidade
+  const foregroundFlowers = [];
+  for (let i=0;i<9;i++){
+    const x = randRange(10,W-10);
+    if (inHouseOrPasture(x, H-10)) continue;
+    foregroundFlowers.push({
+      x, y: H-8-Math.random()*10,
+      type: pick(FLOWER_TYPES), size: 1.6+Math.random()*0.5,
+      phase: Math.random()*Math.PI*2, speed: 0.4+Math.random()*0.4, openness:1, pollen:false
+    });
+  }
+  // flores que abrem devagar ao amanhecer (um pequeno subconjunto)
+  const slowBloomers = [];
+  for (const f of flowers){ if (Math.random() < 0.1){ f.openness = 0.15; slowBloomers.push(f); } }
+  // a flor rara: uma única flor especial em todo o campo, com brilho e cintilação própria
+  const rareFlower = (() => {
+    const candidates = flowers.filter(f => f.y > 160 && f.y < 200);
+    const base = candidates.length ? candidates[Math.floor(Math.random()*candidates.length)] : flowers[0];
+    base.rare = true; base.size *= 1.15;
+    return base;
+  })();
+
+  function updateFlowers(dt, t){
+    for (const f of slowBloomers){ if (f.openness < 1) f.openness = Math.min(1, f.openness + dt*0.00004); }
+  }
+  function drawFlower(f, timeSec, wind){
+    const s = f.size*(0.5+0.5*(f.openness===undefined?1:f.openness));
+    const sway = (Math.sin(timeSec*f.speed+f.phase)*1.3 + wind*2.4) * s;
+    const baseX = f.x, baseY = f.y;
+    const topX = baseX+sway, topY = baseY-7*s;
+    ctx.strokeStyle = '#3f6b3a';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(Math.round(baseX), Math.round(baseY));
+    ctx.quadraticCurveTo(Math.round(baseX+sway*0.5), Math.round(baseY-4*s), Math.round(topX), Math.round(topY));
+    ctx.stroke();
+    const p = Math.max(1, Math.round(1.4*s));
+    ctx.fillStyle = f.type.petals;
+    ctx.fillRect(Math.round(topX-p*1.6), Math.round(topY-p*0.5), p, p);
+    ctx.fillRect(Math.round(topX+p*0.6), Math.round(topY-p*0.5), p, p);
+    ctx.fillRect(Math.round(topX-p*0.5), Math.round(topY-p*1.6), p, p);
+    ctx.fillRect(Math.round(topX-p*0.5), Math.round(topY+p*0.6), p, p);
+    ctx.fillStyle = f.type.center;
+    ctx.fillRect(Math.round(topX-p*0.5), Math.round(topY-p*0.5), p, p);
+    if (f.rare){
+      const glow = 0.35+0.25*Math.sin(timeSec*1.6);
+      ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha = glow;
+      ctx.fillStyle = '#fff3c2';
+      ctx.fillRect(Math.round(topX-p*2.2), Math.round(topY-p*2.2), p*4.4, p*4.4);
+      ctx.restore(); ctx.globalAlpha = 1;
+    }
+    return { topX, topY };
+  }
+
+  // pólen: partículas bem discretas que saem de algumas flores de vez em quando
+  let pollen = [], pollenTimer = randRange(3000,6000);
+  function updatePollen(dt, t){
+    if (t > 0.6) { pollen = pollen.filter(p=>false); return; }
+    pollenTimer -= dt;
+    if (pollenTimer <= 0){
+      const pool = flowers.filter(f => f.pollen);
+      if (pool.length){
+        const f = pool[Math.floor(Math.random()*pool.length)];
+        pollen.push({ x:f.x, y:f.y-7*f.size, vy:-0.006-Math.random()*0.006, vx:(Math.random()-0.5)*0.006, life:0, maxLife:randRange(2500,4200) });
+      }
+      pollenTimer = randRange(2500,5000);
+    }
+    for (const p of pollen){ p.x += p.vx; p.y += p.vy; p.life += dt; }
+    pollen = pollen.filter(p => p.life < p.maxLife);
+  }
+  function drawPollen(){
+    for (const p of pollen){
+      const a = (1-p.life/p.maxLife)*0.5;
+      ctx.fillStyle = `rgba(255,243,176,${a})`;
+      ctx.fillRect(Math.round(p.x), Math.round(p.y), 1, 1);
+    }
+  }
+
+  let bloomSparkles = [], bloomTimer = randRange(2000,4000);
+  function updateBloomSparkles(dt){
+    bloomTimer -= dt;
+    if (bloomTimer <= 0 && flowers.length > 0){
+      const f = flowers[Math.floor(Math.random()*flowers.length)];
+      bloomSparkles.push({ x:f.x, y:f.y-7*f.size, life:0, maxLife:randRange(500,900) });
+      bloomTimer = randRange(1500,3000);
+    }
+    for (const s of bloomSparkles) s.life += dt;
+    bloomSparkles = bloomSparkles.filter(s => s.life < s.maxLife);
+  }
+  function drawBloomSparkles(){
+    for (const s of bloomSparkles){
+      const a = 1 - s.life/s.maxLife;
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = a*0.8;
+      ctx.fillStyle = '#fff6d0';
+      ctx.fillRect(Math.round(s.x), Math.round(s.y), 1, 1);
+      ctx.fillRect(Math.round(s.x)-1, Math.round(s.y)-1, 3, 1);
+      ctx.fillRect(Math.round(s.x), Math.round(s.y)-1, 1, 3);
+      ctx.restore(); ctx.globalAlpha = 1;
+    }
+  }
+  function spawnSparkleAt(x,y){
+    bloomSparkles.push({ x, y, life:0, maxLife:randRange(500,900) });
+  }
+  // uma flor balança forte + solta pétalas (usado tanto por rajadas quanto por clique)
+  let petalBursts = [];
+  function shakeFlower(f){
+    for (let i=0;i<5;i++){
+      petalBursts.push({ x:f.x, y:f.y-6*f.size, vx:(Math.random()-0.5)*0.04, vy:-0.01-Math.random()*0.02, life:0, maxLife:randRange(900,1500), color:f.type.petals });
+    }
+  }
+  function updatePetalBursts(dt){
+    for (const p of petalBursts){ p.x += p.vx; p.y += p.vy; p.vy += 0.0009; p.life += dt; }
+    petalBursts = petalBursts.filter(p => p.life < p.maxLife);
+  }
+  function drawPetalBursts(){
+    for (const p of petalBursts){
+      const a = 1 - p.life/p.maxLife;
+      ctx.save(); ctx.globalAlpha = Math.max(0,a);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(Math.round(p.x), Math.round(p.y), 2, 2);
+      ctx.restore(); ctx.globalAlpha = 1;
+    }
+  }
+
+  // ---------- casal ----------
+  let coupleMoment = 'idle', coupleMomentT = 0, coupleAutoTimer = randRange(30000,50000), coupleLean = 0;
+  let couplePointT = 0;
+  function triggerCoupleMoment(){
+    if (coupleMoment !== 'idle') return;
+    coupleMoment = 'approach'; coupleMomentT = 0;
+  }
+  function updateCoupleMoment(dt){
+    if (coupleMoment === 'idle'){
+      coupleAutoTimer -= dt;
+      if (coupleAutoTimer <= 0){
+        coupleAutoTimer = randRange(45000,80000);
+        if (Math.random() < 0.75) triggerCoupleMoment();
+      }
+      coupleLean = Math.max(0, coupleLean - dt/1500);
+      return;
+    }
+    coupleMomentT += dt;
+    if (coupleMoment === 'approach'){
+      coupleLean = Math.min(1, coupleLean + dt/1100);
+      if (coupleMomentT > 1100){ coupleMoment = 'hold'; coupleMomentT = 0; playSoftChime(); }
+    } else if (coupleMoment === 'hold'){
+      if (coupleMomentT > 1600){
+        coupleMoment = 'heart'; coupleMomentT = 0;
+        heartsPop.push({ x:coupleX, y:coupleY-19, life:0, maxLife:2000 });
+      }
+    } else if (coupleMoment === 'heart'){
+      if (coupleMomentT > 1700) { coupleMoment = 'release'; coupleMomentT = 0; }
+    } else if (coupleMoment === 'release'){
+      coupleLean = Math.max(0, coupleLean - dt/1400);
+      if (coupleMomentT > 1400){ coupleMoment = 'idle'; coupleMomentT = 0; }
+    }
+    if (couplePointT > 0) couplePointT -= dt;
+  }
+  function drawCouple(timeSec){
+    const x = coupleX, y = coupleY;
+    const sway = Math.sin(timeSec*0.8)*0.6;
+    const breathe = Math.sin(timeSec*0.35)*0.5;
+    const lean = coupleLean*1.6;
+    const lookAtDog = (typeof dog !== 'undefined') && (dog.state === 'sitNearCouple' || dog.state === 'approachCouple');
+    ctx.fillStyle = 'rgba(20,20,10,0.25)';
+    ctx.fillRect(x-10,y+1,22,3);
+
+    // ela
+    ctx.fillStyle = '#c0546e';
+    ctx.fillRect(Math.round(x-9+sway*0.3+lean), y-14+breathe, 8, 14);
+    ctx.fillRect(Math.round(x-10+sway*0.3+lean), y-2, 10, 3);
+    ctx.fillStyle = '#f0c9a0';
+    ctx.fillRect(Math.round(x-7+sway*0.3+lean), y-19+breathe+(lookAtDog?1:0), 5, 5);
+    ctx.fillStyle = '#3a2418';
+    ctx.fillRect(Math.round(x-8+sway*0.3+lean), y-20+breathe, 7, 3);
+    ctx.fillRect(Math.round(x-8+sway*0.3+lean), y-17+breathe, 2, 6);
+
+    // ele
+    ctx.fillStyle = '#3a5a78';
+    ctx.fillRect(Math.round(x+2-sway*0.3-lean), y-15+breathe, 8, 10);
+    ctx.fillStyle = '#2a2a30';
+    ctx.fillRect(Math.round(x+2-sway*0.3-lean), y-5, 3, 8);
+    ctx.fillRect(Math.round(x+7-sway*0.3-lean), y-5, 3, 8);
+    ctx.fillStyle = '#f0c9a0';
+    ctx.fillRect(Math.round(x+3-sway*0.3-lean), y-20+breathe-(lookAtDog?1:0), 5, 5);
+    ctx.fillStyle = '#241810';
+    ctx.fillRect(Math.round(x+3-sway*0.3-lean), y-21+breathe, 5, 2);
+
+    // mãos: só ficam visíveis próximas quando eles se aproximam
+    ctx.fillStyle = '#f0c9a0';
+    ctx.fillRect(x-1-lean*0.4, y-9+breathe, 3+lean*0.8, 2);
+
+    // braço apontando (evento raro ligado a bandos de pássaros passando)
+    if (couplePointT > 0){
+      const p = clamp(couplePointT/1500, 0, 1);
+      ctx.strokeStyle = '#3a5a78';
+      ctx.beginPath();
+      ctx.moveTo(Math.round(x+9-sway*0.3-lean), y-13+breathe);
+      ctx.lineTo(Math.round(x+15-sway*0.3-lean), y-19+breathe*p);
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = 'rgba(255,210,150,0.25)';
+    ctx.fillRect(Math.round(x+9-sway*0.3-lean), y-14, 1, 10);
+    ctx.fillRect(Math.round(x-10+sway*0.3+lean), y-14, 1, 8);
+  }
+  function drawHeartPixel(x,y,scale,alpha,color){
+    const px = [[-2,-2],[-1,-2],[1,-2],[2,-2],[-3,-1],[0,-1],[3,-1],[-3,0],[3,0],[-2,1],[2,1],[-1,2],[1,2],[0,3]];
+    ctx.save(); ctx.globalAlpha = alpha; ctx.fillStyle = color;
+    for (const [dx,dy] of px){ ctx.fillRect(Math.round(x+dx*scale), Math.round(y+dy*scale), Math.max(1,scale), Math.max(1,scale)); }
+    ctx.restore(); ctx.globalAlpha = 1;
+  }
+  let heartsPop = [], heartPopTimer = randRange(6000,11000);
+  function updateHeartsPop(dt){
+    heartPopTimer -= dt;
+    if (heartPopTimer <= 0){
+      heartsPop.push({ x:coupleX+randRange(-4,4), y:coupleY-16, life:0, maxLife:randRange(1800,2600) });
+      heartPopTimer = randRange(7000,13000);
+    }
+    for (const h of heartsPop) h.life += dt;
+    heartsPop = heartsPop.filter(h => h.life < h.maxLife);
+  }
+  function drawHeartsPop(){
+    for (const h of heartsPop){
+      const p = h.life/h.maxLife;
+      const y = h.y - p*10;
+      const a = Math.sin(p*Math.PI);
+      drawHeartPixel(h.x, y, 0.8, a*0.8, '#e65a6e');
+    }
+  }
+
+  // ---------- borboletas, abelhas, passarinhos ----------
+  let butterflies = [], butterflyTimer = randRange(1500,3000);
+  function updateButterflies(dt,t){
+    if (t > 0.55){ butterflies = []; return; }
+    butterflyTimer -= dt;
+    if (butterflyTimer <= 0 && butterflies.length < 7){
+      butterflies.push({
+        x: Math.random()*W, y: 140+Math.random()*60,
+        phase: Math.random()*Math.PI*2, speed: 0.4+Math.random()*0.5,
+        color: ['#ffd166','#ff6b81','#c77dff','#7fd6c9'][Math.floor(Math.random()*4)],
+        life:0, maxLife: randRange(9000,16000), dir: Math.random()<0.5?1:-1, fleeing:false
+      });
+      butterflyTimer = randRange(1800,3600);
+    }
+    for (const b of butterflies){
+      b.life += dt; b.phase += 0.02;
+      if (!b.fleeing){
+        b.x += Math.cos(b.phase)*b.speed*0.5*b.dir + 0.15*b.dir;
+        b.y += Math.sin(b.life*0.004+b.phase)*0.4;
+      }
+      b.fleeing = false;
+    }
+    butterflies = butterflies.filter(b => b.life < b.maxLife && b.x > -10 && b.x < W+10);
+  }
+  function drawButterflies(timeSec){
+    for (const b of butterflies){
+      const flap = Math.sin(timeSec*10+b.phase) > 0 ? 2 : 1;
+      ctx.fillStyle = b.color;
+      ctx.fillRect(Math.round(b.x-flap), Math.round(b.y-1), flap, 2);
+      ctx.fillRect(Math.round(b.x+1), Math.round(b.y-1), flap, 2);
+    }
+  }
+  // evento em cadeia: uma borboleta se aproxima de uma flor, pousa, abre/fecha as
+  // asas algumas vezes e sai voando de novo.
+  EventManager.register('butterflyLands', {
+    interval: [22000, 42000],
+    allowed: t => t < 0.55 && butterflies.length > 0 && flowers.length > 0,
+    locks: ['butterflyFocus'],
+    start(){
+      const b = pick(butterflies);
+      const f = pick(flowers);
+      if (!b || !f) return false;
+      b.fleeing = true;
+      return { b, f, dur: randRange(3200,5200), landed:false };
+    },
+    update(state, dt){
+      const { b, f } = state;
+      if (!butterflies.includes(b)) return false;
+      b.fleeing = true;
+      const tx = f.x, ty = f.y-7*f.size;
+      const dx = tx-b.x, dy = ty-b.y;
+      if (!state.landed){
+        b.x += dx*0.05; b.y += dy*0.05;
+        if (Math.abs(dx) < 2 && Math.abs(dy) < 2){ state.landed = true; state.landT = 0; }
+      } else {
+        state.landT += dt;
+        b.x = tx; b.y = ty;
+      }
+      return state._age < state.dur;
+    },
+    end(state){ if (state.b) state.b.fleeing = false; }
+  });
+
+  let bees = [], beeTimer = randRange(3000,6000);
+  function updateBees(dt,t){
+    if (t > 0.6){ bees = []; return; }
+    beeTimer -= dt;
+    if (beeTimer <= 0 && bees.length < 5 && flowers.length > 0){
+      const f = flowers[Math.floor(Math.random()*flowers.length)];
+      bees.push({ baseX:f.x, baseY:f.y-8, phase:Math.random()*Math.PI*2, life:0, maxLife:randRange(4000,7000) });
+      beeTimer = randRange(3000,6000);
+    }
+    for (const b of bees){ b.life += dt; b.x = b.baseX+Math.sin(b.life*0.01+b.phase)*6; b.y = b.baseY+Math.cos(b.life*0.015+b.phase)*3; }
+    bees = bees.filter(b => b.life < b.maxLife);
+  }
+  function drawBees(){
+    for (const b of bees){
+      ctx.fillStyle = '#2a2018';
+      ctx.fillRect(Math.round(b.x), Math.round(b.y), 1, 1);
+      ctx.fillStyle = 'rgba(255,214,80,0.7)';
+      ctx.fillRect(Math.round(b.x)-1, Math.round(b.y), 1, 1);
+    }
+  }
+  let birds = [], birdTimer = randRange(8000,15000);
+  function updateBirds(dt,t){
+    if (t > 0.6){ birds = []; return; }
+    birdTimer -= dt;
+    if (birdTimer <= 0 && birds.length === 0){
+      const count = 3+Math.floor(Math.random()*3);
+      const startY = 20+Math.random()*20;
+      const fromCorner = Math.random() < 0.5;
+      for (let i=0;i<count;i++){ birds.push({ x:-10-i*6, y:startY+i*2, vx:0.09, bob:Math.random()*10, landed:false }); }
+      birdTimer = randRange(15000,26000);
+      if (Math.random() < 0.35) couplePointT = 1500; // eles notam o bando passando
+    }
+    for (const b of birds){ if (!b.landed) b.x += b.vx; }
+    birds = birds.filter(b => b.x < W+10 && b.x > -40);
+  }
+  function drawBirds(timeSec){
+    const frame = Math.floor(timeSec*3)%2;
+    for (const b of birds){
+      const y = b.landed ? b.y : b.y+Math.sin(timeSec+b.bob)*2;
+      const pts = (frame === 0 && !b.landed)
+        ? [[-2,0],[-1,-1],[0,-1],[1,-1],[2,0]]
+        : (b.landed ? [[-1,0],[0,-1],[1,0]] : [[-2,-1],[-1,0],[0,0],[1,0],[2,-1]]);
+      ctx.fillStyle = 'rgba(40,30,30,0.8)';
+      for (const [dx,dy] of pts){ ctx.fillRect(Math.round(b.x+dx), Math.round(y+dy), 1, 1); }
+    }
+  }
+  // evento incomum: o bando pousa em uma árvore de fundo por alguns segundos e sai voando junto
+  EventManager.register('birdsLand', {
+    interval: [26000, 50000],
+    allowed: t => t < 0.55 && birds.length >= 2,
+    locks: ['birds'],
+    start(){
+      const tr = pick(backTrees);
+      if (!tr) return false;
+      for (const b of birds){ b.landed = true; b.x = tr.x+randRange(-4,4); b.y = tr.y-8*tr.s+randRange(-2,2); }
+      return { dur: randRange(2600,4200) };
+    },
+    update(state){ return state._age < state.dur; },
+    end(){ for (const b of birds) b.landed = false; }
+  });
+
+  let fireflies = null, fireflyBoost = 0;
+  function drawFireflies(t, timeSec){
+    if (t < 0.5) return;
+    if (!fireflies){
+      fireflies = Array.from({length:18}, () => ({
+        x: Math.random()*W, y: 130+Math.random()*70,
+        phase: Math.random()*Math.PI*2, speed: 0.3+Math.random()*0.5
+      }));
+    }
+    const vis = smoothstep(0.5,0.75,t);
+    for (const f of fireflies){
+      const x = f.x+Math.sin(timeSec*f.speed+f.phase)*6;
+      const y = f.y+Math.cos(timeSec*f.speed*0.8+f.phase)*4;
+      const a = (0.4+0.6*Math.sin(timeSec*2+f.phase*3))*(vis+fireflyBoost);
+      if (a <= 0.05) continue;
+      ctx.fillStyle = `rgba(255,236,150,${Math.min(1,a)})`;
+      ctx.fillRect(Math.round(x), Math.round(y), 1, 1);
+      ctx.fillStyle = `rgba(255,236,150,${Math.min(1,a*0.25)})`;
+      ctx.fillRect(Math.round(x)-1, Math.round(y)-1, 3, 3);
+    }
+  }
+  // evento raro: vaga-lumes surgem em grupo, mais brilhantes por alguns segundos
+  EventManager.register('fireflySwarm', {
+    interval: [70000, 130000],
+    allowed: t => t > 0.68,
+    locks: ['fireflies'],
+    start(){ return { dur: randRange(4000,7000) }; },
+    update(state){ fireflyBoost = 0.5*(1-Math.abs(state._age/state.dur-0.5)*2); return state._age < state.dur; },
+    end(){ fireflyBoost = 0; }
+  });
+
+  let leaves = [], leafTimer = randRange(1500,3000);
+  function updateLeaves(dt){
+    leafTimer -= dt;
+    if (leafTimer <= 0 && leaves.length < 14){
+      const tr = trees[Math.floor(Math.random()*trees.length)];
+      leaves.push({
+        x: tr.x+randRange(-10,10)*tr.s, y: tr.y-20*tr.s,
+        vy: 0.02+Math.random()*0.015, vx:(Math.random()-0.5)*0.02,
+        color: tr.type === 'blossom' ? '#f3b8d0' : '#c98a3a'
+      });
+      leafTimer = randRange(1200,2600);
+    }
+    for (const l of leaves){ l.x += l.vx+Math.sin(l.y*0.05)*0.03; l.y += l.vy; }
+    leaves = leaves.filter(l => l.y < H+4);
+  }
+  function spawnGustLeaves(){
+    const n = 4+Math.floor(Math.random()*5);
+    for (let i=0;i<n;i++){
+      const tr = pick(trees);
+      leaves.push({
+        x: tr.x+randRange(-12,12)*tr.s, y: tr.y-18*tr.s,
+        vy: 0.03+Math.random()*0.02, vx: gustDir*(0.05+Math.random()*0.05),
+        color: tr.type === 'blossom' ? '#f3b8d0' : '#c98a3a'
+      });
+    }
+    if (leaves.length > 40) leaves.splice(0, leaves.length-40);
+  }
+  function drawLeaves(){
+    for (const l of leaves){ ctx.fillStyle = l.color; ctx.fillRect(Math.round(l.x), Math.round(l.y), 2, 2); }
+  }
+  let dandelions = [], dandelionTimer = randRange(10000,20000);
+  function updateDandelions(dt,t){
+    if (t > 0.6) return;
+    dandelionTimer -= dt;
+    if (dandelionTimer <= 0 && dandelions.length < 10){
+      dandelions.push({ x:randRange(0,W), y:randRange(150,210), vx:randRange(0.01,0.03), vy:-randRange(0.01,0.025), life:0, maxLife:randRange(6000,11000) });
+      dandelionTimer = randRange(2500,5000);
+    }
+    for (const d of dandelions){ d.life += dt; d.x += d.vx; d.y += d.vy+Math.sin(d.life*0.002)*0.01; }
+    dandelions = dandelions.filter(d => d.life < d.maxLife);
+  }
+  function drawDandelions(){
+    for (const d of dandelions){
+      const a = Math.max(0, 1-d.life/d.maxLife)*0.8;
+      ctx.fillStyle = `rgba(255,255,255,${a})`;
+      ctx.fillRect(Math.round(d.x), Math.round(d.y), 1, 1);
+    }
+  }
+  // evento incomum: o cachorro percebe uma borboleta e sai atrás dela — ela foge,
+  // ele para depois de alguns segundos e volta andando.
+  EventManager.register('dogChaseButterfly', {
+    interval: [38000, 75000],
+    allowed: t => t < 0.55 && butterflies.length > 0 && (dog.state==='walk' || dog.state==='stop'),
+    locks: ['dog'],
+    start(){
+      const target = pick(butterflies);
+      if (!target) return false;
+      dogSetState('chase');
+      return { target, dur: randRange(2600,4200) };
+    },
+    update(state){
+      const t = state.target;
+      if (!butterflies.includes(t) || state._age > state.dur){ dogSetState('runBack'); return false; }
+      const dx = t.x - dog.x;
+      dog.dir = dx > 0 ? 1 : -1;
+      dog.x += 0.09*Math.sign(dx || 1);
+      if (Math.abs(dx) < 22){ t.x += (dx>0?-1:1)*0.7; t.phase += 0.2; }
+      return true;
+    },
+    end(){ if (dog.state === 'chase') dogSetState('runBack'); }
+  });
+  // evento raro: algo assusta as galinhas (coelho passando perto, ou só um susto aleatório)
+  EventManager.register('chickensSpook', {
+    interval: [55000, 100000],
+    allowed: t => t < 0.85,
+    locks: ['chickens'],
+    start(){
+      spookChickens(70+Math.random()*40);
+      return { dur: 200 };
+    },
+    update(state){ return state._age < state.dur; }
+  });
+
+  // ---------- estrelas cadentes, aurora, pipa, chuva, relance distante ----------
+  let shootingStars = [], shootingTimer = randRange(4000,9000);
+  function updateShootingStars(dt,t){
+    if (t < 0.6) return;
+    shootingTimer -= dt;
+    if (shootingTimer <= 0 && shootingStars.length < 2){
+      const fromLeft = Math.random() < 0.5;
+      shootingStars.push({ x: fromLeft?-10:W+10, y:10+Math.random()*40, vx:(fromLeft?1:-1)*(1.2+Math.random()*0.8), vy:0.5+Math.random()*0.3, trail:[], bright:false });
+      shootingTimer = randRange(5000,11000);
+    }
+    for (const s of shootingStars){
+      s.trail.push({ x:s.x, y:s.y }); if (s.trail.length > 10) s.trail.shift();
+      s.x += s.vx; s.y += s.vy;
+    }
+    shootingStars = shootingStars.filter(s => s.y < HORIZON+10 && s.x > -15 && s.x < W+15);
+  }
+  function drawShootingStars(){
+    for (const s of shootingStars){
+      s.trail.forEach((p,i) => {
+        const a = (i+1)/s.trail.length*(s.bright?0.9:0.7);
+        ctx.fillStyle = `rgba(255,250,230,${a})`;
+        ctx.fillRect(Math.round(p.x), Math.round(p.y), s.bright?2:1, s.bright?2:1);
+      });
+      ctx.fillStyle = '#fffef0';
+      ctx.fillRect(Math.round(s.x), Math.round(s.y), s.bright?3:2, s.bright?3:2);
+    }
+  }
+  // evento raro: uma estrela cadente especialmente brilhante, com um sininho discreto
+  EventManager.register('brightShootingStar', {
+    interval: [80000, 150000],
+    allowed: t => t > 0.62,
+    locks: ['sky-rare'],
+    start(){
+      const fromLeft = Math.random() < 0.5;
+      const s = { x: fromLeft?-10:W+10, y:12+Math.random()*30, vx:(fromLeft?1:-1)*(1.6+Math.random()*0.6), vy:0.55, trail:[], bright:true };
+      shootingStars.push(s);
+      playSoftChime();
+      return { s, dur: 2600 };
+    },
+    update(state){ return state._age < state.dur && shootingStars.includes(state.s); }
+  });
+
+  let auroraActive = false, auroraTimer = randRange(30000,60000), auroraPhase = 0;
+  function updateAurora(dt,t){
+    if (t < 0.85) return;
+    auroraTimer -= dt;
+    if (!auroraActive && auroraTimer <= 0){ auroraActive = true; auroraPhase = 0; }
+    if (auroraActive){ auroraPhase += dt; if (auroraPhase > 14000){ auroraActive = false; auroraTimer = randRange(40000,70000); } }
+  }
+  function drawAurora(now){
+    if (!auroraActive) return;
+    const a = Math.min(1,auroraPhase/2000)*Math.min(1,(14000-auroraPhase)/2000);
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.15*a;
+    for (let i=0;i<3;i++){
+      const yy = 20+i*10+Math.sin(now*0.0004+i)*4;
+      const grad = ctx.createLinearGradient(0,yy,W,yy);
+      grad.addColorStop(0,'rgba(120,255,200,0)');
+      grad.addColorStop(0.5, i%2===0?'rgba(120,255,200,0.6)':'rgba(160,140,255,0.6)');
+      grad.addColorStop(1,'rgba(120,255,200,0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0,yy,W,6);
+    }
+    ctx.restore(); ctx.globalAlpha = 1;
+  }
+  let kite = null, kiteTimer = randRange(15000,30000);
+  function updateKite(dt,t){
+    if (t > 0.5){ kite = null; return; }
+    if (!kite){
+      kiteTimer -= dt;
+      if (kiteTimer <= 0){ kite = { x:-10, y:40+Math.random()*10, vx:0.03 }; kiteTimer = randRange(60000,90000); }
+    } else {
+      kite.x += kite.vx;
+      kite.y += Math.sin(performance.now()*0.001)*0.05;
+      if (kite.x > W+15) kite = null;
+    }
+  }
+  function drawKite(){
+    if (!kite) return;
+    const x = Math.round(kite.x), y = Math.round(kite.y);
+    ctx.fillStyle = '#ff6b81';
+    ctx.beginPath();
+    ctx.moveTo(x,y-4); ctx.lineTo(x+4,y); ctx.lineTo(x,y+4); ctx.lineTo(x-4,y); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.beginPath(); ctx.moveTo(x,y+4);
+    for (let i=1;i<=4;i++){ ctx.lineTo(x-i*2, y+4+i*3+Math.sin(performance.now()*0.005+i)*1.5); }
+    ctx.stroke();
+  }
+  let rainState = 'pending', rainStart = 0, rainTriggered = false, raindrops = [];
+  const rainTriggerT = randRange(0.16,0.38);
+  function updateRain(dt,t,now){
+    if (!rainTriggered && t >= rainTriggerT && t < 0.55){
+      rainTriggered = true; rainState = 'raining'; rainStart = now;
+      for (let i=0;i<55;i++){ raindrops.push({ x:Math.random()*W, y:Math.random()*H, speed:2+Math.random()*1.5 }); }
+    }
+    if (rainState === 'raining'){
+      for (const r of raindrops){ r.y += r.speed; if (r.y > H){ r.y = -4; r.x = Math.random()*W; } }
+      if (now-rainStart > 7000){ rainState = 'rainbow'; rainStart = now; raindrops = []; }
+    }
+    if (rainState === 'rainbow'){ if (now-rainStart > 9500){ rainState = 'done'; } }
+  }
+  function drawRainDrops(){
+    if (rainState !== 'raining') return;
+    ctx.strokeStyle = 'rgba(200,220,255,0.5)';
+    for (const r of raindrops){ ctx.beginPath(); ctx.moveTo(r.x,r.y); ctx.lineTo(r.x-1,r.y+4); ctx.stroke(); }
+  }
+  function drawRainbow(now){
+    if (rainState !== 'rainbow') return;
+    const age = now-rainStart;
+    const a = Math.min(1,age/1500)*Math.min(1,(9500-age)/1500);
+    if (a <= 0.02) return;
+    const colors = ['#ff6b6b','#ffa94d','#ffe066','#8ce99a','#66d9e8','#748ffc','#cc5de8'];
+    const cx = W*0.5, cy = HORIZON+6, baseR = 70;
+    ctx.save();
+    ctx.globalAlpha = a*0.75;
+    colors.forEach((col,i) => {
+      ctx.strokeStyle = col; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(cx,cy,baseR-i*2.2, Math.PI, Math.PI*2); ctx.stroke();
+    });
+    ctx.restore(); ctx.globalAlpha = 1;
+  }
+  let foreshadow = [], foreshadowTimer = randRange(15000,30000);
+  function updateForeshadow(dt,t){
+    if (t < 0.55 || t > 0.8) return;
+    foreshadowTimer -= dt;
+    if (foreshadowTimer <= 0 && foreshadow.length < 1){
+      foreshadow.push({ x:randRange(40,W-40), y:randRange(15,40), life:0, maxLife:randRange(1200,2000) });
+      foreshadowTimer = randRange(20000,35000);
+    }
+    for (const f of foreshadow) f.life += dt;
+    foreshadow = foreshadow.filter(f => f.life < f.maxLife);
+  }
+  function drawForeshadow(now){
+    for (const f of foreshadow){
+      if (Math.sin(now*0.02) <= 0) continue;
+      ctx.fillStyle = 'rgba(200,255,220,0.8)';
+      ctx.fillRect(Math.round(f.x), Math.round(f.y), 1, 1);
+    }
+  }
+
+  // ---------- "olha ali": pequenos acontecimentos fora do centro da tela ----------
+  // reforça a sensação de mundo grande: nem tudo acontece perto do casal.
+  let cornerHints = [];
+  function drawCornerHints(){
+    for (const c of cornerHints){
+      const a = Math.max(0, 1-c._age/c.dur)*0.7;
+      if (a <= 0.02) continue;
+      ctx.save(); ctx.globalAlpha = a; ctx.fillStyle = c.color;
+      ctx.fillRect(Math.round(c.x), Math.round(c.y), c.r, c.r);
+      ctx.restore(); ctx.globalAlpha = 1;
+    }
+  }
+  EventManager.register('cornerHint', {
+    interval: [16000, 32000],
+    allowed: () => true,
+    locks: [],
+    start(){
+      const spots = [
+        { x:22, y:HORIZON-6, color:'#dff0d8' },
+        { x:W-22, y:HORIZON-4, color:'#dff0d8' },
+        { x:bushes.length?pick(bushes).x:30, y:bushes.length?pick(bushes).y-8:190, color:'#c8e8c0' },
+        { x:randRange(20,W-20), y:randRange(HORIZON+20,H-16), color:'#f5f0d8' }
+      ];
+      const spot = pick(spots);
+      const c = { x:spot.x, y:spot.y, r:1, color:spot.color, dur:randRange(900,1500), _age:0 };
+      cornerHints.push(c);
+      return { c };
+    },
+    update(state, dt){
+      state.c._age += dt;
+      if (state.c._age > state.c.dur){ const i = cornerHints.indexOf(state.c); if (i>=0) cornerHints.splice(i,1); return false; }
+      return true;
+    }
+  });
+
+  // ---------- céu completo ----------
+  function drawSky(t, timeSec, now){
+    const stopsDay = ['#4a90d9','#7ec8e3','#bfe3e0','#ffe6a7','#ffd27a'];
+    const stopsNight = ['#02030d','#05081f','#0b1030','#151b3d','#20264a'];
+    const grad = ctx.createLinearGradient(0,0,0,HORIZON+6);
+    const positions = [0,0.32,0.56,0.8,1];
+    positions.forEach((p,i) => { grad.addColorStop(p, lerpColor(stopsDay[i], stopsNight[i], t)); });
+    ctx.fillStyle = grad;
+    ctx.fillRect(0,0,W,HORIZON+6);
+
+    const starVis = smoothstep(0.4,0.75,t);
+    if (starVis > 0.01){
+      for (const s of stars){
+        const tw = s.base*(0.6+0.4*Math.sin(timeSec*s.speed+s.phase));
+        ctx.globalAlpha = clamp(tw,0,1)*starVis;
+        ctx.fillStyle = '#fff6e0';
+        ctx.fillRect(s.x, s.y, s.r, s.r);
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    drawAurora(now);
+
+    const sunProgress = clamp(t/0.42,0,1);
+    if (sunProgress < 1){
+      const sx = 300, sy = 30+sunProgress*70, r = 10-sunProgress*2;
+      const glow = ctx.createRadialGradient(sx,sy,0,sx,sy,r*3.2);
+      glow.addColorStop(0,'rgba(255,225,160,0.5)');
+      glow.addColorStop(1,'rgba(255,225,160,0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(sx-r*3.2, sy-r*3.2, r*6.4, r*6.4);
+      fillPixelCircle(sx, sy, r, lerpColor('#fff4d0','#ffb069', sunProgress));
+    }
+
+    const moonProgress = smoothstep(0.4,0.75,t);
+    if (moonProgress > 0.01){
+      const mx = 80, my = 100-moonProgress*70;
+      ctx.globalAlpha = moonProgress;
+      fillPixelCircle(mx, my, 7, '#fdf6e3');
+      ctx.fillStyle = 'rgba(200,190,160,0.5)';
+      ctx.fillRect(mx-3,my-1,2,2);
+      ctx.fillRect(mx+2,my+2,1,1);
+      ctx.globalAlpha = 1;
+    }
+
+    ctx.globalAlpha = 0.15*(1-t*0.5);
+    ctx.fillStyle = lerpColor('#fff2df','#443a66', t);
+    for (const c of clouds){
+      ctx.fillRect(Math.round(c.x), Math.round(c.y), c.w, 3);
+      ctx.fillRect(Math.round(c.x+3), Math.round(c.y-2), c.w-6, 3);
+    }
+    ctx.globalAlpha = 1;
+
+    drawBirds(timeSec);
+    drawKite();
+    drawShootingStars();
+    drawForeshadow(now);
+  }
+
+  // ---------- OVNI + objeto + carta (preservado) ----------
+  let ufoState = 'idle';
+  let ufo = { x:-30, y:30 };
+  const UFO_TARGET_X = 232, UFO_TARGET_Y = 32;
+  let ufoHoverTimer = 0;
+  let objState = 'hidden';
+  let objPos = { x:222, y:200 };
+  const OBJ_GROUND_Y = 201;
+  let dustParticles = [];
+
+  function updateUFO(dt,t,now){
+    if (ufoState === 'idle'){
+      if (t >= 0.82){
+        ufoState = 'arriving';
+      }
+      return;
+    }
+    if (ufoState === 'arriving'){
+      const dx = UFO_TARGET_X-ufo.x;
+      const step = Math.min(Math.abs(dx), 0.05*dt);
+      ufo.x += Math.sign(dx)*step;
+      ufo.y = UFO_TARGET_Y+Math.sin(now*0.003)*3;
+      if (Math.abs(UFO_TARGET_X-ufo.x) < 1){ ufoState = 'hovering'; ufoHoverTimer = 0; }
+      return;
+    }
+    if (ufoState === 'hovering'){
+      ufoHoverTimer += dt;
+      ufo.y = UFO_TARGET_Y+Math.sin(now*0.002)*2;
+      if (ufoHoverTimer > 3200){
+        ufoState = 'dropping'; objState = 'falling';
+        objPos.x = UFO_TARGET_X+randRange(-6,6);
+        objPos.y = ufo.y+6;
+      }
+      return;
+    }
+    if (ufoState === 'dropping'){
+      if (objState === 'landed'){ ufoState = 'leaving'; }
+      return;
+    }
+    if (ufoState === 'leaving'){
+      ufo.x += 0.35;
+      ufo.y = UFO_TARGET_Y-4;
+      if (ufo.x > W+30){
+        ufoState = 'done';
+      }
+      return;
+    }
+  }
+  function updateFallingObject(dt){
+    if (objState !== 'falling') return;
+    objPos.y += 0.035*dt;
+    if (objPos.y >= OBJ_GROUND_Y){
+      objPos.y = OBJ_GROUND_Y;
+      objState = 'landed';
+      spawnLandingBurst(objPos.x, objPos.y);
+    }
+  }
+  function spawnLandingBurst(x,y){
+    for (let i=0;i<18;i++){
+      const ang = Math.random()*Math.PI*2, sp = randRange(0.3,0.9);
+      dustParticles.push({ x, y, vx:Math.cos(ang)*sp, vy:Math.sin(ang)*sp-0.2, life:0, maxLife:randRange(30,55) });
+    }
+    playChime();
+  }
+  function updateDust(dt){
+    for (const d of dustParticles){ d.x += d.vx; d.y += d.vy; d.vy += 0.02; d.life++; }
+    dustParticles = dustParticles.filter(d => d.life < d.maxLife);
+  }
+  function drawDust(){
+    for (const d of dustParticles){
+      const a = 1-d.life/d.maxLife;
+      ctx.fillStyle = `rgba(255,235,180,${a})`;
+      ctx.fillRect(Math.round(d.x), Math.round(d.y), 1, 1);
+    }
+  }
+  function drawUFO(){
+    if (ufoState === 'idle' || ufoState === 'done') return;
+    const x = Math.round(ufo.x), y = Math.round(ufo.y);
+    if (ufoState === 'hovering' || ufoState === 'dropping'){
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = 0.22+0.08*Math.sin(performance.now()*0.005);
+      ctx.fillStyle = '#bff7ff';
+      for (let yy=y+4; yy<OBJ_GROUND_Y+4; yy+=2){
+        const p = (yy-(y+4))/((OBJ_GROUND_Y+4)-(y+4));
+        const w = 3+p*16;
+        ctx.fillRect(Math.round(x-w/2), yy, Math.round(w), 1);
+      }
+      ctx.restore(); ctx.globalAlpha = 1;
+    }
+    ctx.fillStyle = '#6a7a8a';
+    ctx.fillRect(x-11,y-2,22,4);
+    ctx.fillStyle = '#8fa5b5';
+    ctx.fillRect(x-6,y-6,12,4);
+    ctx.fillStyle = '#dff3ff';
+    ctx.fillRect(x-3,y-5,6,3);
+    const blink = Math.sin(performance.now()*0.01) > 0;
+    ctx.fillStyle = blink ? '#ff6b81' : '#ffe066';
+    ctx.fillRect(x-10,y+1,2,1);
+    ctx.fillRect(x+8,y+1,2,1);
+    ctx.fillStyle = blink ? '#ffe066' : '#ff6b81';
+    ctx.fillRect(x-1,y+1,2,1);
+  }
+  function drawFallingObject(timeSec){
+    if (objState === 'hidden') return;
+    const x = Math.round(objPos.x), y = Math.round(objPos.y);
+    const bob = objState === 'landed' ? Math.sin(timeSec*2)*1.2 : 0;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const pulse = 0.4+0.3*Math.sin(timeSec*2.4);
+    const g = ctx.createRadialGradient(x, y+bob, 0, x, y+bob, 10);
+    g.addColorStop(0, `rgba(255,230,160,${pulse})`);
+    g.addColorStop(1,'rgba(255,230,160,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(x-10, Math.round(y+bob-10), 20, 20);
+    ctx.restore(); ctx.globalAlpha = 1;
+
+    ctx.fillStyle = '#e8d9b0';
+    ctx.fillRect(x-5, Math.round(y+bob-3), 10, 6);
+    ctx.strokeStyle = '#c9a15a';
+    ctx.beginPath();
+    ctx.moveTo(x-5, Math.round(y+bob-3));
+    ctx.lineTo(x, Math.round(y+bob+1));
+    ctx.lineTo(x+5, Math.round(y+bob-3));
+    ctx.stroke();
+    ctx.fillStyle = '#d94a5a';
+    ctx.fillRect(x-1, Math.round(y+bob-1), 2, 2);
+  }
+
+  // ---------- final: flash, céu, estrelas formando o texto (preservado) ----------
+  const flashEl = document.getElementById('flash');
+  let finalePhase = 'none';
+  let finaleStart = 0;
+  let textRevealStart = null;
+
+  function triggerFinale(now){
+    if (finalePhase !== 'none') return;
+    finalePhase = 'flash';
+    finaleStart = now;
+    flashEl.classList.add('on');
+    setTimeout(() => { flashEl.classList.remove('on'); }, 450);
+    swellFinale();
+  }
+  function updateFinale(now){
+    if (finalePhase === 'none') return;
+    const el = now-finaleStart;
+    if (finalePhase === 'flash' && el > 450){ finalePhase = 'skyfade'; }
+    else if (finalePhase === 'skyfade' && el > 450+2600){ finalePhase = 'textreveal'; textRevealStart = now; }
+    else if (finalePhase === 'textreveal' && now-textRevealStart > 4500){ finalePhase = 'hold'; }
+  }
+  function drawClosingStars(now, baseAlpha){
+    if (textRevealStart === null) return;
+    const elapsed = now-textRevealStart;
+    const timeSec = now/1000;
+    for (const s of closingStars){
+      const reveal = smoothstep(s.delay, s.delay+600, elapsed);
+      if (reveal <= 0) continue;
+      const tw = 0.75+0.25*Math.sin(timeSec*s.speed+s.phase);
+      const a = reveal*tw*baseAlpha;
+      if (a <= 0.03) continue;
+      ctx.globalAlpha = a*0.4;
+      ctx.fillStyle = '#fff6e0';
+      ctx.fillRect(Math.round(s.x)-1, Math.round(s.y)-1, s.r+2, s.r+2);
+      ctx.globalAlpha = a;
+      ctx.fillRect(Math.round(s.x), Math.round(s.y), s.r, s.r);
+    }
+    ctx.globalAlpha = 1;
+  }
+  function drawFinaleOverlay(now){
+    if (finalePhase === 'none') return;
+    const el = now-finaleStart;
+    let skyAlpha = 0;
+    if (finalePhase === 'skyfade'){ skyAlpha = clamp((el-450)/2600,0,1); }
+    else if (finalePhase === 'textreveal' || finalePhase === 'hold'){ skyAlpha = 1; }
+    if (skyAlpha <= 0) return;
+
+    let zoom = 1;
+    if (finalePhase === 'hold'){ zoom = 1+Math.min(0.08, (now-textRevealStart)/1000*0.0015); }
+
+    ctx.save();
+    ctx.translate(W/2,H/2);
+    ctx.scale(zoom,zoom);
+    ctx.translate(-W/2,-H/2);
+
+    ctx.globalAlpha = skyAlpha;
+    const grad = ctx.createLinearGradient(0,0,0,H);
+    grad.addColorStop(0,'#03040f');
+    grad.addColorStop(1,'#0a0f2a');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0,0,W,H);
+
+    for (const s of finaleStars){
+      const tw = 0.5+0.5*Math.sin(now*0.002*s.speed+s.phase);
+      ctx.globalAlpha = skyAlpha*tw;
+      ctx.fillStyle = '#fff6e0';
+      ctx.fillRect(s.x, s.y, s.r, s.r);
+    }
+    ctx.globalAlpha = skyAlpha;
+    fillPixelCircle(W*0.78, H*0.22, 15, '#fdf6e3');
+    ctx.fillStyle = 'rgba(200,190,160,0.5)';
+    ctx.fillRect(Math.round(W*0.78)-4, Math.round(H*0.22)-2, 2, 2);
+    ctx.fillRect(Math.round(W*0.78)+3, Math.round(H*0.22)+3, 2, 2);
+
+    if (finalePhase === 'textreveal' || finalePhase === 'hold'){
+      drawClosingStars(now, skyAlpha);
+    }
+
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
+  // ---------- diálogos dos animais ----------
+  const dialogueA = document.getElementById('dialogueA');
+  const dialogueB = document.getElementById('dialogueB');
+  const animalDialogues = [
+    {a:'cow',  b:'sheep0', ta:'O dia está tão bonito hoje.', tb:'E as flores estão cheirosas!'},
+    {a:'dog',  b:'chicken0', ta:'Vocês viram a borboleta?', tb:'Vi! Ela passou voando ali.'},
+    {a:'sheep1', b:'sheep0', ta:'Você ouviu esse barulho?', tb:'Ouvi... acho que foi o vento.'},
+    {a:'rooster', b:'cow', ta:'Já está ficando tarde.', tb:'Então vamos aproveitar o restinho do sol.'},
+    {a:'chicken1', b:'dog', ta:'Você vai correr de novo?', tb:'Só mais um pouquinho!'},
+    {a:'cow', b:'dog', ta:'Esse campo é tranquilo demais.', tb:'Por isso eu gosto de ficar aqui.'}
+  ];
+  let dialogueState = { active:false, scene:null, start:0, end:0, next:0 };
+  let dialogueTimer = randRange(9500,17000);
+
+  function animalAnchor(id){
+    if (id==='cow') return {x:cow.x-1, y:cow.y-10};
+    if (id==='sheep0') return {x:sheepFlock[0].x, y:sheepFlock[0].y-9};
+    if (id==='sheep1') return {x:sheepFlock[1].x, y:sheepFlock[1].y-9};
+    if (id==='chicken0') return {x:chickens[0].x, y:chickens[0].y-8};
+    if (id==='chicken1') return {x:chickens[1].x, y:chickens[1].y-8};
+    if (id==='rooster') return {x:rooster.x, y:rooster.y-13};
+    if (id==='dog') return {x:dog.x, y:dog.y-9};
+    return {x:W/2, y:H/2};
+  }
+
+  function resetDialogueBubble(el){
+    el.classList.remove('show','flip','leftTail','rightTail');
+    el.textContent='';
+    el.style.left='-999px'; el.style.top='-999px';
+  }
+
+  function placeDialogue(el, anchor, text, index){
+    const xPct = clamp((anchor.x/W)*100, 13, 87);
+    const yPct = clamp((anchor.y/H)*100, 18, 88);
+    el.textContent = text;
+    el.style.left = xPct+'%';
+    el.style.top = yPct+'%';
+    el.classList.remove('flip','leftTail','rightTail');
+    if (anchor.y < 44) el.classList.add('flip');
+    if (xPct < 25) el.classList.add('leftTail');
+    if (xPct > 75) el.classList.add('rightTail');
+    requestAnimationFrame(() => el.classList.add('show'));
+    if (index===0) el.style.zIndex='2'; else el.style.zIndex='3';
+  }
+
+  function hideDialogues(){
+    dialogueA.classList.remove('show');
+    dialogueB.classList.remove('show');
+    dialogueState.active = false;
+  }
+
+  function startDialogue(now){
+    const scene = animalDialogues[Math.floor(Math.random()*animalDialogues.length)];
+    dialogueState = { active:true, scene, start:now, end:now+9000, next:now+1250 };
+    resetDialogueBubble(dialogueA); resetDialogueBubble(dialogueB);
+    placeDialogue(dialogueA, animalAnchor(scene.a), scene.ta, 0);
+    // a segunda fala entra logo depois, criando uma conversa de verdade.
+    setTimeout(() => {
+      if (!dialogueState.active || dialogueState.scene!==scene) return;
+      placeDialogue(dialogueB, animalAnchor(scene.b), scene.tb, 1);
+    }, 1150);
+  }
+
+  function updateDialogues(dt, now){
+    if (!dialogueState.active){
+      dialogueTimer -= dt;
+      if (dialogueTimer <= 0){
+        dialogueTimer = randRange(18000,32000);
+        if (Math.random() < 0.9 && isDayish(clamp((now-startTime)/CYCLE_MS,0,1))) startDialogue(now);
+      }
+      return;
+    }
+
+    const scene = dialogueState.scene;
+    if (!scene || now > dialogueState.end){
+      hideDialogues();
+      return;
+    }
+
+    // Os balões acompanham os animais enquanto eles andam.
+    const a = animalAnchor(scene.a);
+    const b = animalAnchor(scene.b);
+    dialogueA.style.left = clamp((a.x/W)*100,13,87)+'%';
+    dialogueA.style.top = clamp((a.y/H)*100,18,88)+'%';
+    dialogueB.style.left = clamp((b.x/W)*100,13,87)+'%';
+    dialogueB.style.top = clamp((b.y/H)*100,18,88)+'%';
+  }
+
+  // ---------- loop principal ----------
+  let lastNow = null;
+  function frame(now){
+    const dt = lastNow ? now-lastNow : 16.7;
+    lastNow = now;
+    const elapsed = now-startTime;
+    const t = clamp(elapsed/CYCLE_MS, 0, 1);
+    const timeSec = elapsed/1000;
+
+    updateWind(dt, now);
+    updateClouds();
+    updateBirds(dt,t);
+    updateButterflies(dt,t);
+    updateBees(dt,t);
+    updateLeaves(dt);
+    updateDandelions(dt,t);
+    updateShootingStars(dt,t);
+    updateAurora(dt,t);
+    updateKite(dt,t);
+    updateRain(dt,t,now);
+    updateSmoke(dt);
+    updateCow(dt);
+    for (const c of chickens) updateChicken(c, dt);
+    updateSheep(dt);
+    updateRooster(dt);
+    updateDog(dt);
+    updateFlowers(dt,t);
+    updatePollen(dt,t);
+    updatePetalBursts(dt);
+    updateBloomSparkles(dt);
+    updateHeartsPop(dt);
+    updateCoupleMoment(dt);
+    updateForeshadow(dt,t);
+    updateDialogues(dt,now);
+    updateUFO(dt,t,now);
+    updateFallingObject(dt);
+    updateDust(dt);
+    updateFinale(now);
+    if (finalePhase === 'none') EventManager.tick(dt, t, now);
+
+    const wind = currentWind();
+
+    drawSky(t, timeSec, now);
+    drawBackHillAndTrees(t);
+    drawGround(t);
+    drawRoots();
+    drawDirtPatches();
+    drawRocks();
+    drawTwigs();
+    drawTufts(timeSec, wind, false);
+    drawBlades(timeSec, wind);
+    drawLeafPiles();
+    drawFencePlants(timeSec, wind);
+    drawFence();
+    drawBushes(timeSec, wind);
+    drawSheep();
+    drawCow(timeSec);
+    for (const c of chickens) drawChicken(c);
+    drawEggs();
+    drawRooster();
+    drawHouse(t, timeSec);
+    for (const tr of trees) drawTree(tr, timeSec, wind);
+    for (const f of flowers) drawFlower(f, timeSec, wind);
+    drawCouple(timeSec);
+    drawDog();
+    drawRabbits();
+    drawButterflies(timeSec);
+    drawBees();
+    drawFireflies(t, timeSec);
+    drawLeaves();
+    drawDandelions();
+    drawPollen();
+    drawBloomSparkles();
+    drawPetalBursts();
+    drawHeartsPop();
+    drawCornerHints();
+    drawTufts(timeSec, wind, true);
+    for (const f of foregroundFlowers) drawFlower(f, timeSec, wind);
+    drawUFO();
+    drawFallingObject(timeSec);
+    drawDust();
+    drawRainDrops();
+    drawRainbow(now);
+    drawFinaleOverlay(now);
+
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // ---------- interação ----------
+  function toCanvasCoords(clientX, clientY){
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = W/rect.width, scaleY = H/rect.height;
+    return { x:(clientX-rect.left)*scaleX, y:(clientY-rect.top)*scaleY };
+  }
+  function nearestFlowerAt(x,y,radius){
+    let best = null, bestD = radius*radius;
+    for (const f of flowers){
+      const d = (f.x-x)*(f.x-x) + (f.y-8-y)*(f.y-8-y);
+      if (d < bestD){ best = f; bestD = d; }
+    }
+    for (const f of foregroundFlowers){
+      const d = (f.x-x)*(f.x-x) + (f.y-11-y)*(f.y-11-y);
+      if (d < bestD){ best = f; bestD = d; }
+    }
+    return best;
+  }
+  function butterflyAt(x,y,radius){
+    for (const b of butterflies){ if (Math.hypot(b.x-x,b.y-y) < radius) return b; }
+    return null;
+  }
+  function birdAt(x,y,radius){
+    for (const b of birds){ if (Math.hypot(b.x-x,b.y-y) < radius) return b; }
+    return null;
+  }
+  function inCoupleRegion(x,y){ return x > coupleX-14 && x < coupleX+18 && y > coupleY-24 && y < coupleY+5; }
+  function inDogRegion(x,y){ return Math.hypot(x-dog.x, y-(dog.y-4)) < 9; }
+  function inHouseRegion(x,y){ return x > HOUSE.leftX && x < HOUSE.rightX && y > HOUSE.roofPeakY && y < HOUSE.baseY+2; }
+
+  function pulseHouseWindow(){
+    windowFlicker = 1;
+    for (let i=0;i<4;i++){ smoke.push({ x:HOUSE.chimneyX+(Math.random()-0.5)*3, y:HOUSE.chimneyTopY-2, vy:-0.014-Math.random()*0.008, vx:(Math.random()-0.5)*0.014, life:0, maxLife:randRange(3500,6000) }); }
+    playSoftChime();
+    setTimeout(() => { windowFlicker = 0; }, 220);
+  }
+  function spookButterfly(b){
+    b.dir = Math.random()<0.5?-1:1;
+    b.speed = Math.min(2.2, b.speed*3);
+    b.phase += 2;
+  }
+  function shooBird(b){
+    b.landed = false;
+    b.vx = (Math.random()<0.5?-1:1) * (0.4+Math.random()*0.3);
+  }
+
+  function handleSceneClick(x,y){
+    if (objState === 'landed' && Math.hypot(x-objPos.x, y-objPos.y) < 10){ openLetter(); return; }
+    if (inCoupleRegion(x,y)){ triggerCoupleMoment(); return; }
+    if (inDogRegion(x,y) && !EventManager.isLocked('dog')){
+      dogSetState('wag'); playBark();
+      return;
+    }
+    if (inHouseRegion(x,y)){ pulseHouseWindow(); return; }
+    const fl = nearestFlowerAt(x,y,6);
+    if (fl){ shakeFlower(fl); spawnSparkleAt(fl.x, fl.y-7*fl.size); return; }
+    const bu = butterflyAt(x,y,5);
+    if (bu){ spookButterfly(bu); return; }
+    const bi = birdAt(x,y,6);
+    if (bi){ shooBird(bi); return; }
+  }
+  canvas.addEventListener('mousemove', (e) => {
+    const { x, y } = toCanvasCoords(e.clientX, e.clientY);
+    const near = (objState === 'landed' && Math.hypot(x-objPos.x, y-objPos.y) < 10)
+      || inCoupleRegion(x,y) || inDogRegion(x,y) || inHouseRegion(x,y)
+      || !!nearestFlowerAt(x,y,6) || !!butterflyAt(x,y,5) || !!birdAt(x,y,6);
+    canvas.style.cursor = near ? 'pointer' : 'default';
+  });
+  canvas.addEventListener('click', (e) => {
+    const { x, y } = toCanvasCoords(e.clientX, e.clientY);
+    handleSceneClick(x,y);
+  });
+
+  const letterOverlay = document.getElementById('letterOverlay');
+  document.getElementById('closeLetter').addEventListener('click', closeLetter);
+  letterOverlay.addEventListener('click', (e) => { if (e.target === letterOverlay) closeLetter(); });
+  function openLetter(){ letterOverlay.classList.add('open'); }
+  function closeLetter(){
+    letterOverlay.classList.remove('open');
+    triggerFinale(performance.now());
+  }
+
+  // ---------- som ambiente ----------
+  let actx = null, started = false, padGain = null, windGain = null;
+  function initAudio(){
+    actx = new (window.AudioContext || window.webkitAudioContext)();
+
+    const bufferSize = 2*actx.sampleRate;
+    const noiseBuffer = actx.createBuffer(1, bufferSize, actx.sampleRate);
+    const data = noiseBuffer.getChannelData(0);
+    let lastOut = 0;
+    for (let i=0;i<bufferSize;i++){
+      const white = Math.random()*2-1;
+      data[i] = (lastOut+0.02*white)/1.02;
+      lastOut = data[i];
+      data[i] *= 2.4;
+    }
+    const noiseSrc = actx.createBufferSource();
+    noiseSrc.buffer = noiseBuffer;
+    noiseSrc.loop = true;
+    const filter = actx.createBiquadFilter();
+    filter.type = 'lowpass'; filter.frequency.value = 650;
+    windGain = actx.createGain(); windGain.gain.value = 0.05;
+    noiseSrc.connect(filter); filter.connect(windGain); windGain.connect(actx.destination);
+    noiseSrc.start();
+
+    padGain = actx.createGain();
+    padGain.gain.value = 0;
+    padGain.connect(actx.destination);
+    padGain.gain.linearRampToValueAtTime(0.05, actx.currentTime+4);
+    [261.63, 329.63, 392.0].forEach((freq,i) => {
+      const o = actx.createOscillator();
+      o.type = 'sine';
+      o.frequency.value = freq*(i===1?1.001:1);
+      const g = actx.createGain(); g.gain.value = 1/3;
+      o.connect(g); g.connect(padGain); o.start();
+    });
+
+    scheduleChirp();
+  }
+  function scheduleChirp(){
+    if (!actx) return;
+    const delay = randRange(4,10);
+    setTimeout(() => { playChirp(); scheduleChirp(); }, delay*1000);
+  }
+  function playChirp(){
+    if (!actx) return;
+    const o = actx.createOscillator(); o.type = 'sine';
+    const g = actx.createGain(); g.gain.value = 0.0001;
+    o.connect(g); g.connect(actx.destination);
+    const t0 = actx.currentTime;
+    const base = 1600+Math.random()*800;
+    o.frequency.setValueAtTime(base, t0);
+    o.frequency.exponentialRampToValueAtTime(base*1.4, t0+0.08);
+    g.gain.exponentialRampToValueAtTime(0.03, t0+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0+0.18);
+    o.start(t0); o.stop(t0+0.2);
+  }
+  function playMoo(){
+    if (!actx) return;
+    const o = actx.createOscillator(); o.type = 'sawtooth';
+    const g = actx.createGain(); g.gain.value = 0.0001;
+    const filt = actx.createBiquadFilter(); filt.type = 'lowpass'; filt.frequency.value = 400;
+    o.connect(filt); filt.connect(g); g.connect(actx.destination);
+    const t0 = actx.currentTime;
+    o.frequency.setValueAtTime(110, t0);
+    o.frequency.linearRampToValueAtTime(90, t0+0.9);
+    g.gain.linearRampToValueAtTime(0.05, t0+0.1);
+    g.gain.linearRampToValueAtTime(0.0001, t0+1.0);
+    o.start(t0); o.stop(t0+1.1);
+  }
+  function playCluck(){
+    if (!actx) return;
+    const o = actx.createOscillator(); o.type = 'square';
+    const g = actx.createGain(); g.gain.value = 0.0001;
+    o.connect(g); g.connect(actx.destination);
+    const t0 = actx.currentTime;
+    o.frequency.setValueAtTime(500, t0);
+    o.frequency.exponentialRampToValueAtTime(700, t0+0.06);
+    g.gain.exponentialRampToValueAtTime(0.04, t0+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0+0.12);
+    o.start(t0); o.stop(t0+0.15);
+  }
+  function playBark(){
+    if (!actx) return;
+    const o = actx.createOscillator(); o.type = 'square';
+    const g = actx.createGain(); g.gain.value = 0.0001;
+    const filt = actx.createBiquadFilter(); filt.type = 'lowpass'; filt.frequency.value = 900;
+    o.connect(filt); filt.connect(g); g.connect(actx.destination);
+    const t0 = actx.currentTime;
+    o.frequency.setValueAtTime(220, t0);
+    o.frequency.exponentialRampToValueAtTime(140, t0+0.09);
+    g.gain.exponentialRampToValueAtTime(0.045, t0+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0+0.16);
+    o.start(t0); o.stop(t0+0.2);
+  }
+  function playChime(){
+    if (!actx) return;
+    [660,880,1320].forEach((f,i) => {
+      const o = actx.createOscillator(); o.type = 'sine';
+      const g = actx.createGain(); g.gain.value = 0.0001;
+      o.connect(g); g.connect(actx.destination);
+      const t0 = actx.currentTime+i*0.08;
+      o.frequency.value = f;
+      g.gain.exponentialRampToValueAtTime(0.05, t0+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0+0.6);
+      o.start(t0); o.stop(t0+0.7);
+    });
+  }
+  function playSoftChime(){
+    if (!actx) return;
+    [880,1100].forEach((f,i) => {
+      const o = actx.createOscillator(); o.type = 'sine';
+      const g = actx.createGain(); g.gain.value = 0.0001;
+      o.connect(g); g.connect(actx.destination);
+      const t0 = actx.currentTime+i*0.1;
+      o.frequency.value = f;
+      g.gain.exponentialRampToValueAtTime(0.022, t0+0.04);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0+0.9);
+      o.start(t0); o.stop(t0+1.0);
+    });
+  }
+  function bumpWindSound(){
+    if (!actx || !windGain) return;
+    const t0 = actx.currentTime;
+    windGain.gain.cancelScheduledValues(t0);
+    windGain.gain.setValueAtTime(0.05, t0);
+    windGain.gain.linearRampToValueAtTime(0.1, t0+0.6);
+    windGain.gain.linearRampToValueAtTime(0.05, t0+2.6);
+  }
+  function swellFinale(){
+    if (!actx || !padGain) return;
+    const t0 = actx.currentTime;
+    padGain.gain.cancelScheduledValues(t0);
+    padGain.gain.setValueAtTime(padGain.gain.value, t0);
+    padGain.gain.linearRampToValueAtTime(0.09, t0+3);
+  }
+
+  const soundBtn = document.getElementById('soundToggle');
+  soundBtn.addEventListener('click', () => {
+    if (started) return;
+    started = true;
+    initAudio();
+    soundBtn.classList.add('on');
+    soundBtn.textContent = 'SOM: ON';
+    soundBtn.style.pointerEvents = 'none';
+    soundBtn.style.transition = 'opacity 0.8s ease';
+    setTimeout(() => {
+      soundBtn.style.opacity = '0';
+      setTimeout(() => { soundBtn.style.display = 'none'; }, 850);
+    }, 550);
+  });
+})();
+</script>
+</body>
+</html>
